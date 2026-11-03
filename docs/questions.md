@@ -135,42 +135,42 @@ A:
 *Added 2026-11-04. Needed before the design system is built; none of these block Phase 0 setup.*
 
 **137. ⭐ Which apps have the best feel and motion, in any category?** Name 2–3 specific screens or interactions whose *feeling* you'd steal (a sheet that opens, a toggle, a scrubber…). This is the single best way to aim the motion.
-A:
+A: (Claude decides, provisional) Aim at: iOS bottom sheets (drag with velocity, rubber-banding), Linear's snappy ease-out lists, Apple Music's mini-player to full-player expansion. Revisit if you name your own.
 
 **138. Describe the feeling of opening Gitara in three words.** (e.g. calm studio, late-night jam, stage-lit.)
-A:
+A: (Claude decides, provisional) Late-night jam; warm; focused.
 
 **139. Glass only on the floating layer (tab bar, player bar, sheets, menus), solid tone steps for chord charts and lists?** Reason: Apple's own guidelines warn against glass in the content layer, and the chart must stay readable on a music stand.
 Suggested: yes.
-A:
+A: Yes (Claude decides).
 
 **140. Wide-tracked capitals only for the wordmark and screen titles, sentence case everywhere else?** Your reference uses them for one big word; scattered tiny tracked labels are a top "AI tell".
 Suggested: yes.
-A:
+A: Yes (Claude decides).
 
 **141. How should "heat = progress" (Planning → Learning → Performing) be drawn?** Not as colored left bars (a common tell). Options: (a) temperature-tinted section titles plus a small drawn mark; (b) a drawn glyph that "warms up" in three stages (like a string vibrating more); (c) a gentle whole-section tint. I can sketch all three.
 Suggested: sketch all three, you pick.
-A:
+A: (Claude decides) Start with (b), a drawn mark that warms in three stages, with temperature-tinted section titles. Sketch the others only if it feels wrong.
 
 **142. Signature motion: "the light follows the music."** The ambient glow breathes with the song's BPM and moves to the playing chord; everything else stays quiet. Does that feel like the one thing you'd describe to a friend, or is there a different idea?
-A:
+A: Yes, keep it as the one signature motion (Claude decides). Glow follows the playing chord, breathes with BPM, off under Reduce Motion.
 
 **143. Motion personality:** precise and snappy (like Linear), fluid and springy (like Apple), or a mix?
 Suggested: precise ease-out for everyday UI; springs only for dragging and sheets.
-A:
+A: Mix, as suggested: precise ease-out for everyday UI, springs only for drag and sheets.
 
 **144. Haptics (taps you can feel on iPhone):** how much do they matter? A browser app on iPhone can do very little; a native wrapper (Capacitor) can do full haptics later.
 Suggested: nice-to-have; add when we wrap it for the App Store.
-A:
+A: Nice-to-have; add with the Capacitor wrapper.
 
 **145. UI sounds** (soft clicks, count-in ticks beyond the metronome)? In a music app they can clash with what you're playing.
 Suggested: off by default; only the metronome and chord previews make sound.
-A:
+A: Off by default; only metronome and chord previews make sound.
 
 **146. Desktop layout for the track editor:** a DAW-like layout (tracks on the left, canvas in the middle, inspector on the right) or a simpler single-canvas layout?
 Suggested: decide when we reach Phase 4; sketch both.
-A:
+A: Decide at Phase 4; sketch both then.
 
 **147. Wordmark:** should I explore a Gitara wordmark in the wide-tracked style (with a custom mark, not a letter in a box)? When?
 Suggested: after the design system, before launch.
-A:
+A: After the design system, before launch.

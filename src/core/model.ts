@@ -158,22 +158,28 @@ export interface Version {
 /** A song in your library, with where you are with it. Keyed by (user, song). */
 export interface LibraryEntry {
   songId: Id;
-  status: LearnStatus;
+  /** null = liked (saved) without saying how well you know it. Setting a status keeps it liked. */
+  status: LearnStatus | null;
   canPlay: PlayablePart[];
   canSing: boolean;
   preferredVersionId?: Id;
   startedLearningAt?: IsoDate;
   startedPerformingAt?: IsoDate;
+  /** Pinned to the top of Library. Device-only for now (not synced). */
+  pinnedAt?: IsoDate;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 }
 
 export interface Playlist {
   id: Id;
+  /** "local" until the guest account exists; replaced by the account id when synced. */
   ownerId: Id;
   name: string;
   description?: string;
   visibility: Visibility;
+  /** Pinned to the top of Library. Device-only for now (not synced). */
+  pinnedAt?: IsoDate;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 }

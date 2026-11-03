@@ -1,0 +1,178 @@
+import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect, useState } from "react";
+import { isMine } from "../../data/auth";
+import { db } from "../../data/local-db";
+import * as repo from "../../data/repo";
+import { Empty, TopBar } from "../../ui/bits";
+import { HeatMark } from "../../ui/HeatMark";
+import { IconExternal, IconHeart, IconMore, IconPlus } from "../../ui/icons";
+import { formatDuration } from "../hooks";
+import { useNav } from "../nav";
+import { useOverlays } from "../overlays";
+import { SongList } from "../rows";
+
+const STATUS_LABEL = { planning: "Planning to learn", learning: "Learning", performing: "Performing" } as const;
+
+function youtubeId(url?: string): string | null {
+  if (!url) return null;
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([\w-]{11})/);
+  return m ? m[1]! : null;
+}
+
+export function SongScreen({ id }: { id: string }) {
+  const nav = useNav();
+  const { open, showToast } = useOverlays();
+  const song = useLiveQuery(() => db.songs.get(id), [id]);
+  const entry = useLiveQuery(() => db.library.get(id), [id]);
+  const inPlaylists = useLiveQuery(async () => {
+    const items = await db.playlistItems.toArray();
+    const ids = [...new Set(items.filter((i) => i.songId === id).map((i) => i.playlistId))];
+    return (await db.playlists.bulkGet(ids)).filter((p) => !!p).map((p) => p!);
+  }, [id]);
+  const moreByArtist = useLiveQuery(async () => {
+    if (!song) return [];
+    return db.songs.where("artist").equals(song.artist).filter((s) => s.id !== id).limit(5).toArray();
+  }, [song?.artist, id]);
+  const [showVideo, setShowVideo] = useState(false);
+
+  useEffect(() => {
+    void repo.touchRecent("song", id);
+  }, [id]);
+
+  if (song === undefined) return <TopBar onBack={nav.back} />;
+  if (song === null || !song)
+    return (
+      <>
+        <TopBar onBack={nav.back} />
+        <Empty title="This song isn't available" text="It may have been removed, or it's private." />
+      </>
+    );
+
+  const liked = !!entry;
+  const meta = [song.releaseYear, song.genre, song.originalKey && `Key ${song.originalKey}`, song.originalBpm && `${song.originalBpm} bpm`, song.timeSignature !== "4/4" && song.timeSignature, formatDuration(song.durationSec)]
+    .filter(Boolean)
+    .join(" · ");
+  const yt = youtubeId(song.youtubeUrl);
+
+  return (
+    <>
+      <TopBar
+        onBack={nav.back}
+        right={
+          <button className="iconbtn iconbtn--plain" aria-label="More" onClick={() => open({ kind: "songMenu", songId: id })}>
+            <IconMore />
+          </button>
+        }
+      />
+      <header className="page-head">
+        <h1 className="page-title">{song.title}</h1>
+        <button className="artistlink" onClick={() => nav.push({ name: "artist", artist: song.artist })}>
+          {song.artist}
+        </button>
+        {meta && <p className="muted num">{meta}</p>}
+        {song.album && <p className="muted">{song.album}</p>}
+        <p className="muted">{song.visibility === "public" ? "Public" : "Private"}{isMine(song.createdBy) ? " · Added by you" : ""}</p>
+      </header>
+
+      <div className="actions">
+        <button
+          className="iconbtn iconbtn--plain iconbtn--lg"
+          data-on={liked}
+          aria-pressed={liked}
+          aria-label={liked ? "Remove from Library" : "Add to Library"}
+          onClick={async () => {
+            if (liked) {
+              const old = await repo.unlike(id);
+              showToast("Removed from your Library", old ? { label: "Undo", run: () => void repo.restoreEntry(old) } : undefined);
+            } else {
+              await repo.like(id);
+              showToast("Added to your Library");
+            }
+          }}
+        >
+          <IconHeart filled={liked} />
+        </button>
+        <button className="statusbtn" onClick={() => open({ kind: "songMenu", songId: id })}>
+          {entry?.status ? (
+            <>
+              <HeatMark heat={entry.status} /> {STATUS_LABEL[entry.status]}
+            </>
+          ) : (
+            "Set status"
+          )}
+        </button>
+        <button className="iconbtn iconbtn--plain iconbtn--lg" aria-label="Add to playlist" onClick={() => open({ kind: "pickPlaylist", songId: id })}>
+          <IconPlus />
+        </button>
+        <span className="actions__spacer" />
+        <button className="btn btn--primary btn--big" disabled title="Play-along needs chords, which come next">
+          Play along
+        </button>
+      </div>
+
+      {(yt || song.spotifyUrl || song.youtubeUrl) && (
+        <section className="block">
+          <h2 className="h2">Listen to the original</h2>
+          {yt && showVideo && (
+            <div className="video">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${yt}`}
+                title={`${song.title} on YouTube`}
+                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
+          )}
+          <div className="stack">
+            {yt && !showVideo && (
+              <button className="btn btn--secondary" onClick={() => setShowVideo(true)}>
+                Play on YouTube here
+              </button>
+            )}
+            {!yt && song.youtubeUrl && (
+              <a className="btn btn--secondary" href={song.youtubeUrl} target="_blank" rel="noreferrer">
+                YouTube <IconExternal />
+              </a>
+            )}
+            {song.spotifyUrl && (
+              <a className="btn btn--secondary" href={song.spotifyUrl} target="_blank" rel="noreferrer">
+                Spotify <IconExternal />
+              </a>
+            )}
+          </div>
+        </section>
+      )}
+
+      <section className="block">
+        <h2 className="h2">Versions</h2>
+        <Empty title="No chord versions yet" text="Chord versions come in the next update: sections, chords on the beat, tuning and capo." />
+      </section>
+
+      {inPlaylists && inPlaylists.length > 0 && (
+        <section className="block">
+          <h2 className="h2">In your playlists</h2>
+          <div className="chips chips--wrap">
+            {inPlaylists.map((p) => (
+              <button key={p.id} className="chip" onClick={() => nav.goTo("library", { name: "playlist", id: p.id })}>
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {moreByArtist && moreByArtist.length > 0 && (
+        <section className="block">
+          <div className="block__head">
+            <h2 className="h2">More by {song.artist}</h2>
+            <button className="link" onClick={() => nav.push({ name: "artist", artist: song.artist })}>
+              Show all
+            </button>
+          </div>
+          <SongList songs={moreByArtist} />
+        </section>
+      )}
+    </>
+  );
+}

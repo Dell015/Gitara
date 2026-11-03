@@ -1,0 +1,302 @@
+import { useLiveQuery } from "dexie-react-hooks";
+import { useMemo, useState } from "react";
+import type { LearnStatus } from "../../core/model";
+import { normalize } from "../../core/text";
+import { isMine } from "../../data/auth";
+import { db } from "../../data/local-db";
+import { Chips, Empty, ItemRow, Mark, SubChips } from "../../ui/bits";
+import { IconClose, IconGrid, IconList, IconPin, IconPlus, IconSearch, IconSort } from "../../ui/icons";
+import { plural, useLibrarySongs, usePlaylistCounts, usePlaylists } from "../hooks";
+import { useNav } from "../nav";
+import { useOverlays } from "../overlays";
+import { ConnectedSongRow } from "../rows";
+import { ScreenHead } from "../Shell";
+
+type Top = "songs" | "playlists" | "artists" | "made";
+type SongSub = LearnStatus | "liked";
+type MadeSub = "songs" | "playlists";
+type Sort = "recents" | "added" | "az" | "artist";
+
+const SORTS: { id: Sort; label: string }[] = [
+  { id: "recents", label: "Recents" },
+  { id: "added", label: "Recently added" },
+  { id: "az", label: "Alphabetical" },
+  { id: "artist", label: "Artist" },
+];
+
+function pref<T extends string>(key: string, fallback: T): [T, (v: T) => void] {
+  let v = fallback;
+  try {
+    v = (localStorage.getItem(key) as T) ?? fallback;
+  } catch {
+    /* ignore */
+  }
+  return [
+    v,
+    (x: T) => {
+      try {
+        localStorage.setItem(key, x);
+      } catch {
+        /* ignore */
+      }
+    },
+  ];
+}
+
+interface Item {
+  key: string;
+  kind: "song" | "playlist" | "artist";
+  title: string;
+  artist?: string;
+  addedAt: string;
+  recentAt: number;
+  pinned: boolean;
+  node: React.ReactNode;
+  tile: { sub: string; go: () => void; menu?: () => void };
+}
+
+export function Library() {
+  const nav = useNav();
+  const { open } = useOverlays();
+  const lib = useLibrarySongs();
+  const playlists = usePlaylists();
+  const counts = usePlaylistCounts();
+  const recents = useLiveQuery(async () => new Map((await db.recents.toArray()).map((r) => [r.key, r.openedAt])));
+
+  const [top, setTop] = useState<Top | null>(null);
+  const [songSub, setSongSub] = useState<SongSub | null>(null);
+  const [madeSub, setMadeSub] = useState<MadeSub | null>(null);
+  const [initialSort, persistSort] = pref<Sort>("gitara.lib.sort", "recents");
+  const [sort, setSortState] = useState<Sort>(initialSort);
+  const [initialView, persistView] = pref<"list" | "grid">("gitara.lib.view", "list");
+  const [view, setViewState] = useState(initialView);
+  const [searching, setSearching] = useState(false);
+  const [q, setQ] = useState("");
+
+  const setSort = (s: Sort) => {
+    setSortState(s);
+    persistSort(s);
+  };
+  const setView = (v: "list" | "grid") => {
+    setViewState(v);
+    persistView(v);
+  };
+
+  const items = useMemo<Item[]>(() => {
+    const out: Item[] = [];
+    const rec = recents ?? new Map<string, number>();
+    const wantSongs = !top || top === "songs" || (top === "made" && madeSub !== "playlists");
+    const wantPlaylists = !top || top === "playlists" || (top === "made" && madeSub !== "songs");
+
+    if (wantSongs)
+      for (const { song, entry } of lib ?? []) {
+        if (top === "made" && !isMine(song.createdBy)) continue;
+        if (top === "songs" && songSub) {
+          if (songSub === "liked" ? entry.status !== null : entry.status !== songSub) continue;
+        }
+        out.push({
+          key: `song:${song.id}`,
+          kind: "song",
+          title: song.title,
+          artist: song.artist,
+          addedAt: entry.createdAt,
+          recentAt: rec.get(`song:${song.id}`) ?? Date.parse(entry.updatedAt),
+          pinned: !!entry.pinnedAt,
+          node: <ConnectedSongRow song={song} lead={entry.pinnedAt ? <span className="pin"><IconPin /></span> : undefined} />,
+          tile: { sub: song.artist, go: () => nav.push({ name: "song", id: song.id }), menu: () => open({ kind: "songMenu", songId: song.id }) },
+        });
+      }
+
+    if (wantPlaylists)
+      for (const p of playlists ?? []) {
+        if (top === "made" && !isMine(p.ownerId)) continue;
+        const n = counts?.get(p.id) ?? 0;
+        const sub = `Playlist · ${plural(n, "song")}${p.visibility === "private" ? "" : ` · ${p.visibility === "public" ? "Public" : "Unlisted"}`}`;
+        const go = () => nav.push({ name: "playlist", id: p.id });
+        out.push({
+          key: `playlist:${p.id}`,
+          kind: "playlist",
+          title: p.name,
+          addedAt: p.createdAt,
+          recentAt: rec.get(`playlist:${p.id}`) ?? Date.parse(p.updatedAt),
+          pinned: !!p.pinnedAt,
+          node: <ItemRow title={p.name} sub={sub} lead={<Mark kind="playlist" />} trail={p.pinnedAt ? <span className="pin"><IconPin /></span> : undefined} onClick={go} />,
+          tile: { sub, go, menu: () => open({ kind: "playlistMenu", id: p.id }) },
+        });
+      }
+
+    if (top === "artists") {
+      const by = new Map<string, { name: string; n: number; added: string }>();
+      for (const { song, entry } of lib ?? []) {
+        const k = normalize(song.artist);
+        const cur = by.get(k);
+        by.set(k, { name: cur?.name ?? song.artist, n: (cur?.n ?? 0) + 1, added: cur && cur.added > entry.createdAt ? cur.added : entry.createdAt });
+      }
+      for (const a of by.values()) {
+        const go = () => nav.push({ name: "artist", artist: a.name });
+        const sub = `Artist · ${plural(a.n, "song")} liked`;
+        out.push({
+          key: `artist:${a.name}`,
+          kind: "artist",
+          title: a.name,
+          addedAt: a.added,
+          recentAt: rec.get(`artist:${a.name}`) ?? Date.parse(a.added),
+          pinned: false,
+          node: <ItemRow title={a.name} sub={sub} lead={<Mark kind="artist" />} onClick={go} />,
+          tile: { sub, go },
+        });
+      }
+    }
+
+    const nq = normalize(q);
+    const filtered = nq ? out.filter((i) => normalize(i.title).includes(nq) || (i.artist && normalize(i.artist).includes(nq))) : out;
+    const cmp: Record<Sort, (a: Item, b: Item) => number> = {
+      recents: (a, b) => b.recentAt - a.recentAt,
+      added: (a, b) => b.addedAt.localeCompare(a.addedAt),
+      az: (a, b) => a.title.localeCompare(b.title),
+      artist: (a, b) => (a.artist ?? a.title).localeCompare(b.artist ?? b.title) || a.title.localeCompare(b.title),
+    };
+    return filtered.sort((a, b) => Number(b.pinned) - Number(a.pinned) || cmp[sort](a, b));
+  }, [lib, playlists, counts, recents, top, songSub, madeSub, sort, q, nav, open]);
+
+  const likedCount = lib?.length ?? 0;
+  const learningCount = (lib ?? []).filter((x) => x.entry.status === "learning").length;
+  const showCollections = !top && !q && likedCount > 0;
+  const loading = lib === undefined || playlists === undefined;
+  const nothing = !loading && !likedCount && !(playlists ?? []).length;
+
+  return (
+    <>
+      <ScreenHead
+        title="Library"
+        tracked
+        right={
+          <>
+            <button className="iconbtn iconbtn--plain" aria-label="Search your Library" aria-pressed={searching} onClick={() => (setSearching((s) => !s), setQ(""))}>
+              <IconSearch />
+            </button>
+            <button className="iconbtn iconbtn--plain" aria-label="Create" onClick={() => open({ kind: "create" })}>
+              <IconPlus />
+            </button>
+          </>
+        }
+      />
+      {searching && (
+        <div className="searchbar searchbar--inline">
+          <IconSearch />
+          <input className="searchbar__input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search your Library" autoFocus aria-label="Search your Library" />
+          <button className="iconbtn iconbtn--plain" aria-label="Close search" onClick={() => (setSearching(false), setQ(""))}>
+            <IconClose />
+          </button>
+        </div>
+      )}
+
+      {!nothing && (
+        <div className="filterbar">
+          <div className="filterbar__chips">
+            <Chips
+              label="Show"
+              value={top}
+              onChange={(v) => {
+                setTop(v);
+                setSongSub(null);
+                setMadeSub(null);
+              }}
+              options={[
+                { id: "songs", label: "Songs" },
+                { id: "playlists", label: "Playlists" },
+                { id: "artists", label: "Artists" },
+                { id: "made", label: "Made by you" },
+              ]}
+            />
+            {top === "songs" && (
+              <SubChips
+                value={songSub}
+                onChange={setSongSub}
+                options={[
+                  { id: "planning", label: "Planning" },
+                  { id: "learning", label: "Learning" },
+                  { id: "performing", label: "Performing" },
+                  { id: "liked", label: "No status" },
+                ]}
+              />
+            )}
+            {top === "made" && (
+              <SubChips
+                value={madeSub}
+                onChange={setMadeSub}
+                options={[
+                  { id: "songs", label: "Songs" },
+                  { id: "playlists", label: "Playlists" },
+                ]}
+              />
+            )}
+          </div>
+          <div className="filterbar__tools">
+            <button className="toolbtn" onClick={() => open({ kind: "sort", current: sort, options: SORTS, onPick: (id) => setSort(id as Sort) })}>
+              <IconSort />
+              <span>{SORTS.find((s) => s.id === sort)!.label}</span>
+            </button>
+            <button className="iconbtn iconbtn--plain" aria-label={view === "list" ? "Show as grid" : "Show as list"} onClick={() => setView(view === "list" ? "grid" : "list")}>
+              {view === "list" ? <IconGrid /> : <IconList />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showCollections && (
+        <div className="list list--tight">
+          <ItemRow title="Liked songs" sub={plural(likedCount, "song")} lead={<Mark kind="liked" />} onClick={() => nav.push({ name: "collection", kind: "liked" })} />
+          {learningCount > 0 && (
+            <ItemRow title="Learning now" sub={plural(learningCount, "song")} lead={<Mark kind="learning" />} onClick={() => nav.push({ name: "collection", kind: "learning" })} />
+          )}
+        </div>
+      )}
+
+      {nothing ? (
+        <Empty title="Your Library is empty" text="Like songs or make a playlist and they'll show up here.">
+          <div className="stack">
+            <button className="btn btn--primary" onClick={() => nav.switchTab("search")}>
+              Find songs
+            </button>
+            <button className="btn btn--secondary" onClick={() => open({ kind: "newPlaylist" })}>
+              New playlist
+            </button>
+          </div>
+        </Empty>
+      ) : view === "list" ? (
+        <ul className="list">
+          {items.map((i) => (
+            <li key={i.key}>{i.node}</li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="grid">
+          {items.map((i) => (
+            <li key={i.key}>
+              <button
+                className="gtile"
+                onClick={i.tile.go}
+                onContextMenu={(e) => {
+                  if (!i.tile.menu) return;
+                  e.preventDefault();
+                  i.tile.menu();
+                }}
+              >
+                <Mark kind={i.kind} />
+                <span className="gtile__title">{i.title}</span>
+                <span className="gtile__sub">{i.tile.sub}</span>
+                {i.pinned && (
+                  <span className="pin gtile__pin">
+                    <IconPin />
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!nothing && !loading && !items.length && <p className="muted">Nothing here{q ? ` matches "${q}"` : " yet"}.</p>}
+    </>
+  );
+}

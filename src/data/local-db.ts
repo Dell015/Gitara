@@ -6,12 +6,24 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { LibraryEntry, Playlist, PlaylistItem, Shape, Song, Version } from "../core/model";
 
+export type SyncedTable = "songs" | "library" | "playlists" | "playlistItems";
+
 export interface OutboxEntry {
   seq?: number; // auto-increment
-  table: "songs" | "versions" | "library" | "playlists" | "playlistItems" | "shapes";
+  table: SyncedTable;
   op: "upsert" | "delete";
   rowId: string;
   createdAt: number;
+  /** Set when sending failed; the entry stays and is retried. */
+  error?: string;
+}
+
+/** Things you opened recently, for Home's quick access grid. key = "song:<id>" | "playlist:<id>" | "artist:<name>". */
+export interface RecentEntry {
+  key: string;
+  kind: "song" | "playlist" | "artist";
+  refId: string;
+  openedAt: number;
 }
 
 export class GitaraDB extends Dexie {
@@ -22,6 +34,7 @@ export class GitaraDB extends Dexie {
   playlistItems!: EntityTable<PlaylistItem, "id">;
   shapes!: EntityTable<Shape, "id">;
   outbox!: EntityTable<OutboxEntry, "seq">;
+  recents!: EntityTable<RecentEntry, "key">;
 
   constructor() {
     super("gitara");
@@ -34,6 +47,14 @@ export class GitaraDB extends Dexie {
       playlistItems: "id, playlistId, [playlistId+position]",
       shapes: "id, name",
       outbox: "++seq, table, createdAt",
+    });
+    // v2 (Phase 1): liked songs (status may be null), pins, recents, artist index.
+    this.version(2).stores({
+      songs: "id, visibility, updatedAt, artist, createdBy",
+      library: "songId, status, updatedAt, createdAt, pinnedAt",
+      playlists: "id, updatedAt, ownerId, pinnedAt",
+      outbox: "++seq, table, rowId, createdAt",
+      recents: "key, openedAt",
     });
   }
 }

@@ -5,6 +5,8 @@ import "@fontsource-variable/montserrat";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/app.css";
+import "./styles/design.css";
+import "./styles/ui.css";
 import App from "./App";
 
 // Offline support: the service worker caches the app so it opens without internet.

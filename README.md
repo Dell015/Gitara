@@ -47,6 +47,8 @@ supabase/migrations/  database schema and row-level security
 
 ## Status
 
+Phase 1 (songbook) first build is in: Home, Search, Library, Add song, song/artist/playlist pages, sync. `#design` shows the design preview, `#check` the build check.
+
 Phase 0 (foundations). Done: toolchain, installable-app setup, instrument core with tests, domain model, on-device database, guest-session plumbing, database schema with security rules (tested against a Postgres engine). Next: the design system, then Phase 1 (songbook).
 
 Not done on purpose: app icons and logo (a design task), real sign-in screens (Phase 5), sync between device and cloud (Phase 5).

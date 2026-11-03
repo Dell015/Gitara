@@ -51,7 +51,7 @@
   --dur-sheet: 320ms;
 
   /* Glass: only for the floating layer (tab bar, player bar, sheets, menus). Content uses --ink-* steps. */
-  --glass-fill: rgb(255 255 255 / 0.05);
+  --glass-fill: rgb(18 26 31 / 0.74);
   --glass-line: rgb(255 255 255 / 0.09);
   --glass-blur: 22px;
   --glass-solid: var(--ink-2); /* fallback when blur isn't available or transparency is reduced */

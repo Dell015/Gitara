@@ -1,0 +1,113 @@
+import { useRef, type ReactNode } from "react";
+import type { LearnStatus, Song } from "../core/model";
+import { HeatMark } from "./HeatMark";
+import { IconHeart, IconMore } from "./icons";
+
+/**
+ * The one song row used everywhere (docs/screens.md, "One song row").
+ * Tap opens the song; the heart likes it; "…" or long-press opens the menu; swipe left toggles like.
+ */
+export function SongRow({
+  song,
+  liked,
+  status,
+  onOpen,
+  onLike,
+  onMenu,
+  lead,
+  trail,
+}: {
+  song: Song;
+  liked: boolean;
+  status?: LearnStatus | null;
+  onOpen: () => void;
+  onLike: () => void;
+  onMenu: () => void;
+  lead?: ReactNode;
+  trail?: ReactNode;
+}) {
+  const el = useRef<HTMLDivElement>(null);
+  const g = useRef<{ x: number; y: number; dx: number; lock: "x" | "y" | null; t?: number; long: boolean } | null>(null);
+
+  const meta = [song.artist, song.originalKey, song.originalBpm ? `${song.originalBpm} bpm` : undefined].filter(Boolean).join(" · ");
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    g.current = { x: e.clientX, y: e.clientY, dx: 0, lock: null, long: false };
+    g.current.t = window.setTimeout(() => {
+      if (g.current && !g.current.lock) {
+        g.current.long = true;
+        onMenu();
+      }
+    }, 500);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const s = g.current;
+    if (!s || e.pointerType === "mouse") return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (!s.lock && Math.hypot(dx, dy) > 8) {
+      s.lock = Math.abs(dx) > Math.abs(dy) * 1.3 ? "x" : "y";
+      window.clearTimeout(s.t);
+    }
+    if (s.lock === "x" && el.current) {
+      s.dx = Math.min(0, dx); // left only
+      const pull = s.dx < -72 ? -72 + (s.dx + 72) * 0.3 : s.dx; // resist past the threshold
+      el.current.style.transition = "none";
+      el.current.style.transform = `translateX(${pull}px)`;
+      el.current.dataset.armed = String(s.dx < -72);
+    }
+  };
+  const end = () => {
+    const s = g.current;
+    g.current = null;
+    if (!s) return;
+    window.clearTimeout(s.t);
+    if (el.current) {
+      el.current.style.removeProperty("transition");
+      el.current.style.removeProperty("transform");
+      delete el.current.dataset.armed;
+    }
+    if (s.lock === "x" && s.dx < -72) onLike();
+  };
+
+  return (
+    <div className="srow-wrap">
+      <span className="srow-under" aria-hidden="true">
+        <IconHeart filled={!liked} />
+      </span>
+      <div
+        ref={el}
+        className="srow"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={end}
+        onPointerCancel={end}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onMenu();
+        }}
+      >
+        {lead}
+        <button
+          className="srow__main"
+          onClick={() => {
+            if (g.current?.long) return;
+            onOpen();
+          }}
+        >
+          <span className="srow__title">{song.title}</span>
+          <span className="srow__sub num">{meta}</span>
+        </button>
+        {status ? <HeatMark heat={status} /> : null}
+        {trail}
+        <button className="srow__icon" data-on={liked} aria-pressed={liked} aria-label={liked ? "Unlike" : "Like"} onClick={onLike}>
+          <IconHeart filled={liked} />
+        </button>
+        <button className="srow__icon" aria-label="More" onClick={onMenu}>
+          <IconMore />
+        </button>
+      </div>
+    </div>
+  );
+}

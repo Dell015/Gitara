@@ -3,6 +3,8 @@ import { GUITAR, GUITAR_TUNINGS } from "./core/instrument";
 import { db } from "./data/local-db";
 import { ensureSession, type SessionState } from "./data/session";
 import { isSupabaseConfigured } from "./data/supabase";
+import Preview from "./design/Preview";
+import { App as Gitara } from "./app/Shell";
 
 type Check = { label: string; state: string; ok: boolean };
 
@@ -11,6 +13,19 @@ type Check = { label: string; state: string; ok: boolean };
  * It is not the real UI; the design system comes next (docs/questions.md section 19).
  */
 export default function App() {
+  // #design shows the design preview, #check the Phase 0 build check; everything else is the app.
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const on = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+  if (hash === "#design") return <Preview />;
+  if (hash === "#check") return <BuildCheck />;
+  return <Gitara />;
+}
+
+function BuildCheck() {
   const [localDb, setLocalDb] = useState<Check>({ label: "On-device database", state: "checking…", ok: false });
   const [session, setSession] = useState<Check>({ label: "Guest account", state: "checking…", ok: false });
 

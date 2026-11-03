@@ -521,6 +521,12 @@ Sources: en.wikipedia.org/wiki/Ultimate_Guitar · ultimate-guitar.com/article/bl
 - Phase 0 built in C:\Users\Admin\VS-IDE\Gitara. Supabase project `gitara` created (Singapore, free plan, ref uossxmxjedzdzelvypkw); schema + security rules applied (migrations 0001, 0002); security advisor clean. Anonymous sign-ins still need switching on in the dashboard.
 - Still undecided: chart format (Q36), lyrics (Q37, Q130), display options (Q41), down-votes (Q47).
 
+### 2026-11-04 (design defaults)
+- Owner delegated Q137-147 to Claude. Provisional: late-night-jam feeling; glass only on floating layer; tracked caps only for wordmark and screen titles; heat drawn as a mark that warms in 3 stages; signature motion = glow follows the music; precise ease-out plus springs only for drag/sheets; no UI sounds; haptics with Capacitor; track-editor layout at Phase 4; wordmark before launch. Owner can overrule any.
+- Architecture: no separate backend. One repo; Supabase is the backend (RLS is the security model). Server-side code, when needed (secrets, moderation, trusted vote counts, heavy jobs), goes in Supabase Edge Functions inside this repo. Keep `src/core` pure and `src/data` the only code touching Dexie/Supabase.
+- Screens: full inventory in `docs/screens.md`. Proposed a Spotify-style structure: tabs Home · Search · Library · Practice · Create (+), Profile on the avatar, mini player above tabs, three-pane desktop, one song row and "…" menu everywhere, like (save) separate from learning status, practice queue. Owner decides changes as we go.
+- Phase 1 (songbook) first build: tabs Home · Search · Library · Practice · Create (+), avatar for account; Library with filter chips, sort, list/grid, pins (device-only), Liked songs and Learning now; Add song with MusicBrainz spellings, duplicate warning, tap tempo, public/private; song page, artist page, genre browse; playlists with drag reorder; the one song row with heart, "…" menu, long-press and swipe-left to like; undo toasts. Data saves on the device first and syncs to Supabase (outbox; pull on start). Migration 0003: a library entry with no status = liked. Not yet: practice queue and swipe-right (Phase 3), "Songs I can play" (needs chords, Phase 2), multi-select, sharing links, mini player (nothing plays yet).
+
 ## 13. Parking lot (ideas, not decided)
 
 - **Design to-do:** fine-tune the palette on real devices (glow strength, accent, grain amount) and confirm the font. Kept on the list as you asked.
