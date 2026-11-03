@@ -167,6 +167,7 @@ create table public.shapes (
 );
 
 create index shapes_name on public.shapes (name);
+create index shapes_created_by on public.shapes (created_by);
 
 -- ----------------------------------------------------------------- library
 
@@ -236,6 +237,8 @@ create table public.playlist_members (
   primary key (playlist_id, user_id)
 );
 
+create index playlist_members_user on public.playlist_members (user_id);
+
 create table public.playlist_items (
   id uuid primary key default gen_random_uuid(),
   playlist_id uuid not null references public.playlists (id) on delete cascade,
@@ -251,6 +254,7 @@ create table public.playlist_items (
 );
 
 create index playlist_items_playlist on public.playlist_items (playlist_id);
+create index playlist_items_song on public.playlist_items (song_id);
 
 -- ---------------------------------------------------- policy helper functions
 -- security definer so policies can look across tables without recursing into each other's RLS.

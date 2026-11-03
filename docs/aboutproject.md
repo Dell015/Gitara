@@ -518,6 +518,7 @@ Sources: en.wikipedia.org/wiki/Ultimate_Guitar · ultimate-guitar.com/article/bl
 - Tech stack accepted. Everything marked "suggested" in questions.md accepted.
 - Design standards added (§5.16): research first, use the three reference repos, ask when unclear, never "AI slop". Glass moves to the floating layer; tracked caps shrink to titles; the first preview is a mood sketch.
 - Look decided: "Ember on Teal" (your reference images, turned down; heat = progress; glow follows the beat; grain; wide-tracked caps). See §5.15.
+- Phase 0 built in C:\Users\Admin\VS-IDE\Gitara. Supabase project `gitara` created (Singapore, free plan, ref uossxmxjedzdzelvypkw); schema + security rules applied (migrations 0001, 0002); security advisor clean. Anonymous sign-ins still need switching on in the dashboard.
 - Still undecided: chart format (Q36), lyrics (Q37, Q130), display options (Q41), down-votes (Q47).
 
 ## 13. Parking lot (ideas, not decided)

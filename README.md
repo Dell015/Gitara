@@ -27,10 +27,10 @@ Other commands:
 
 ## Connect Supabase (guest accounts and the cloud database)
 
-1. Copy `.env.example` to `.env.local`.
-2. Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from your Supabase project (Project Settings, API).
+1. `.env.local` already holds this project's URL and publishable key (it is git-ignored). To use another project, copy `.env.example` to `.env.local` and fill it in.
+2. (Done for the `gitara` project.)
 3. In the Supabase dashboard, turn on **Anonymous sign-ins** (Authentication, Sign In / Providers).
-4. Apply `supabase/migrations/0001_init.sql` (SQL editor, or the Supabase CLI).
+4. The database schema is `supabase/migrations/*.sql`, applied in order. It is already applied to the `gitara` project (Singapore, free plan).
 
 Without the keys the app still runs, local-only.
 
