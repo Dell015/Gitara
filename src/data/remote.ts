@@ -1,7 +1,8 @@
 /** Reading public things from the cloud (search, duplicate checks, artist pages). */
-import type { Song } from "../core/model";
+import type { Song, Version } from "../core/model";
 import { normalize } from "../core/text";
-import { rowToSong, safeSearchTerm } from "./mappers";
+import { db } from "./local-db";
+import { rowToSong, rowToVersion, safeSearchTerm } from "./mappers";
 import { cacheSongs } from "./repo";
 import { supabase } from "./supabase";
 
@@ -50,4 +51,31 @@ export async function findPublicDuplicate(title: string, artist: string): Promis
     .eq("norm_artist", normalize(artist))
     .maybeSingle();
   return data ? rowToSong(data) : null;
+}
+
+/** Public versions of a song (cached on the device so they open offline later). */
+export async function publicVersionsForSong(songId: string): Promise<Version[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("versions").select("*").eq("song_id", songId).eq("visibility", "public").order("created_at", { ascending: false }).limit(100);
+  if (error) throw error;
+  const vs = (data ?? []).map(rowToVersion);
+  const pending = new Set((await db.outbox.where("table").equals("versions").toArray()).map((o) => o.rowId));
+  await db.versions.bulkPut(vs.filter((v) => !pending.has(v.id)));
+  return vs;
+}
+
+/** An exact public duplicate (same song, tuning, capo and chords): publishing it is refused. */
+export async function findPublicVersionDuplicate(v: Pick<Version, "id" | "songId" | "contentHash" | "tuning" | "capo">): Promise<Version | null> {
+  if (!supabase || !v.contentHash) return null;
+  const { data } = await supabase
+    .from("versions")
+    .select("*")
+    .eq("song_id", v.songId)
+    .eq("visibility", "public")
+    .eq("content_hash", v.contentHash)
+    .eq("capo", v.capo)
+    .eq("tuning", `{${v.tuning.join(",")}}`)
+    .neq("id", v.id)
+    .limit(1);
+  return data && data[0] ? rowToVersion(data[0]) : null;
 }

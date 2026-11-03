@@ -1,5 +1,5 @@
 /** Converts between on-device rows (camelCase) and database rows (snake_case). Pure; tested. */
-import type { LibraryEntry, Playlist, PlaylistItem, Song } from "../core/model";
+import type { LibraryEntry, Playlist, PlaylistItem, Song, Version } from "../core/model";
 
 type Row = Record<string, unknown>;
 const opt = <T>(v: T | null | undefined): T | undefined => (v === null ? undefined : v);
@@ -118,4 +118,52 @@ export function rowToItem(r: Row): PlaylistItem {
 /** Characters that would break a PostgREST or() filter. */
 export function safeSearchTerm(q: string): string {
   return q.replace(/[,()*%\\:"]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+export function versionToRow(v: Version, uid: string): Row {
+  return {
+    id: v.id,
+    song_id: v.songId,
+    author_id: uid,
+    based_on: v.basedOn ?? null,
+    instrument_id: v.instrumentId,
+    tuning: v.tuning,
+    capo: v.capo,
+    key_played: v.keyPlayed ?? null,
+    bpm: v.bpm ?? null,
+    time_signature: v.timeSignature ?? null,
+    techniques: v.techniques,
+    label: v.label ?? null,
+    tags: v.tags,
+    content: v.content,
+    content_hash: v.contentHash ?? null,
+    difficulty_score: v.difficultyScore ?? null,
+    difficulty_level: v.difficultyLevel ?? null,
+    visibility: v.visibility,
+  };
+}
+
+export function rowToVersion(r: Row): Version {
+  return {
+    id: r.id as string,
+    songId: r.song_id as string,
+    authorId: (r.author_id as string | null) ?? null,
+    basedOn: opt(r.based_on as string | null),
+    instrumentId: (r.instrument_id as Version["instrumentId"]) ?? "guitar",
+    tuning: r.tuning as number[],
+    capo: (r.capo as number) ?? 0,
+    keyPlayed: opt(r.key_played as string | null),
+    bpm: opt(r.bpm as number | null),
+    timeSignature: opt(r.time_signature as string | null),
+    techniques: (r.techniques as string[]) ?? [],
+    label: opt(r.label as string | null),
+    tags: (r.tags as Version["tags"]) ?? [],
+    content: r.content as Version["content"],
+    contentHash: opt(r.content_hash as string | null),
+    difficultyScore: opt(r.difficulty_score as number | null),
+    difficultyLevel: opt(r.difficulty_level as Version["difficultyLevel"] | null),
+    visibility: r.visibility as Version["visibility"],
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+  };
 }

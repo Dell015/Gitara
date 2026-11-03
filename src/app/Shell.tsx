@@ -22,6 +22,8 @@ import { PlaylistScreen } from "./screens/Playlist";
 import { Practice } from "./screens/Practice";
 import { Search } from "./screens/Search";
 import { SongScreen } from "./screens/Song";
+import { EditVersion } from "./screens/EditVersion";
+import { VersionScreen } from "./screens/Version";
 
 export function App() {
   useEffect(() => {
@@ -98,6 +100,10 @@ function Screen({ route }: { route: Route }) {
       return <Collection kind={route.kind} />;
     case "browse":
       return <Browse genre={route.genre} />;
+    case "version":
+      return <VersionScreen id={route.id} play={route.play} />;
+    case "editVersion":
+      return <EditVersion songId={route.songId} id={route.id} />;
     case "addSong":
       return <AddSong title={route.title} artist={route.artist} editId={route.editId} />;
   }

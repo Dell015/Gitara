@@ -37,7 +37,8 @@ function hash22(x: number, y: number): [number, number] {
   a += d;
   b += d;
   c += d;
-  return [fract((a + a) * c) * 2 - 1, fract((a + b) * b) * 2 - 1];
+  // (p3.xx + p3.yz) * p3.zy, exactly as in the shader
+  return [fract((a + b) * c) * 2 - 1, fract((a + c) * b) * 2 - 1];
 }
 
 /** Gradient noise, about -0.7…0.7. */

@@ -62,6 +62,13 @@ export interface LiveHandle {
   destroy(): void;
 }
 
+const running = new Set<LiveHandle>();
+
+/** Makes every live light on screen breathe once (play-along calls this on each beat). */
+export function pulseLights(v: number): void {
+  running.forEach((h) => h.setPulse(v));
+}
+
 export function startLiveArt(canvas: HTMLCanvasElement, seed: string, opts: { warmth: number; style?: ArtStyle }): LiveHandle | null {
   const gl = canvas.getContext("webgl", { antialias: false, alpha: false, powerPreference: "low-power", preserveDrawingBuffer: false });
   if (!gl) return null;
@@ -149,15 +156,18 @@ export function startLiveArt(canvas: HTMLCanvasElement, seed: string, opts: { wa
   document.addEventListener("visibilitychange", onVis);
   kick();
 
-  return {
+  const handle: LiveHandle = {
     setPulse(v) {
       target = Math.max(target, v);
     },
     destroy() {
+      running.delete(handle);
       cancelAnimationFrame(raf);
       io.disconnect();
       document.removeEventListener("visibilitychange", onVis);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     },
   };
+  running.add(handle);
+  return handle;
 }

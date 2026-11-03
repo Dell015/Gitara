@@ -6,7 +6,7 @@ import { isMine } from "../../data/auth";
 import { db } from "../../data/local-db";
 import { Chips, Empty, ItemRow, Mark, SubChips } from "../../ui/bits";
 import { IconClose, IconGrid, IconList, IconPin, IconPlus, IconSearch, IconSort } from "../../ui/icons";
-import { plural, useLibrarySongs, usePlaylistCounts, usePlaylists } from "../hooks";
+import { plural, useCanPlay, useLibrarySongs, usePlaylistCounts, usePlaylists } from "../hooks";
 import { warmthFor } from "../../ui/artwork";
 import { useNav } from "../nav";
 import { useOverlays } from "../overlays";
@@ -64,6 +64,7 @@ export function Library() {
   const lib = useLibrarySongs();
   const playlists = usePlaylists();
   const counts = usePlaylistCounts();
+  const canPlay = useCanPlay();
   const recents = useLiveQuery(async () => new Map((await db.recents.toArray()).map((r) => [r.key, r.openedAt])));
 
   const [top, setTop] = useState<Top | null>(null);
@@ -254,6 +255,9 @@ export function Library() {
       {showCollections && (
         <div className="list list--tight">
           <ItemRow title="Liked songs" sub={plural(likedCount, "song")} lead={<Mark kind="liked" />} onClick={() => nav.push({ name: "collection", kind: "liked" })} />
+          {(canPlay?.size ?? 0) > 0 && (
+            <ItemRow title="Songs I can play" sub={plural(canPlay!.size, "song")} lead={<Mark kind="liked" seed="songs-i-can-play" />} onClick={() => nav.push({ name: "collection", kind: "canplay" })} />
+          )}
           {learningCount > 0 && (
             <ItemRow title="Learning now" sub={plural(learningCount, "song")} lead={<Mark kind="learning" />} onClick={() => nav.push({ name: "collection", kind: "learning" })} />
           )}

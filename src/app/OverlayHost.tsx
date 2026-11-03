@@ -10,7 +10,9 @@ import { useSyncState } from "../data/sync";
 import { Segmented } from "../ui/bits";
 import { IconCheck, IconPlus } from "../ui/icons";
 import { Sheet } from "../ui/Sheet";
+import { ChordSheet, FretboardBuilder } from "./ChordSheets";
 import { useNav } from "./nav";
+import { VersionMenu } from "./VersionMenu";
 import { useOverlays, type Overlay } from "./overlays";
 
 export function OverlayHost() {
@@ -38,6 +40,9 @@ const TITLES: Record<Overlay["kind"], string> = {
   playlistMenu: "Playlist options",
   addToPlaylist: "Add songs",
   sort: "Sort by",
+  chord: "Chord",
+  fretboard: "Build a chord",
+  versionMenu: "Version options",
 };
 
 function Content({ o }: { o: Overlay }) {
@@ -62,6 +67,12 @@ function Content({ o }: { o: Overlay }) {
       return <AddSongs playlistId={o.playlistId} />;
     case "sort":
       return <SortSheet {...o} />;
+    case "chord":
+      return <ChordSheet name={o.name} tuning={o.tuning} capo={o.capo} current={o.current} onPick={o.onPick} />;
+    case "fretboard":
+      return <FretboardBuilder tuning={o.tuning} capo={o.capo} start={o.start} onDone={o.onDone} />;
+    case "versionMenu":
+      return <VersionMenu id={o.id} />;
   }
 }
 

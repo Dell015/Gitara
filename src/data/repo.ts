@@ -2,7 +2,8 @@
  * Every change to your data goes through here: it writes to the on-device database and records an
  * outbox entry in the same transaction, so nothing is lost if the app closes before syncing.
  */
-import type { LearnStatus, LibraryEntry, PlayablePart, Playlist, PlaylistItem, Song, Visibility } from "../core/model";
+import { computeDifficulty, contentHash } from "../core/chart";
+import type { LearnStatus, LibraryEntry, PlayablePart, Playlist, PlaylistItem, Song, Version, Visibility } from "../core/model";
 import { normalize } from "../core/text";
 import { ownerForNewRow } from "./auth";
 import { db, type SyncedTable } from "./local-db";
@@ -284,4 +285,62 @@ export async function touchRecent(kind: "song" | "playlist" | "artist", refId: s
   await db.recents.put({ key: `${kind}:${refId}`, kind, refId, openedAt: Date.now() });
   const all = await db.recents.orderBy("openedAt").reverse().toArray();
   if (all.length > 30) await db.recents.bulkDelete(all.slice(30).map((r) => r.key));
+}
+
+// ---------------------------------------------------------------- versions
+
+export type VersionDraft = Omit<Version, "id" | "authorId" | "createdAt" | "updatedAt" | "contentHash" | "difficultyScore" | "difficultyLevel"> & { id?: string };
+
+/** Saves a version (new or existing). Difficulty and the duplicate fingerprint are worked out here. */
+export async function saveVersion(d: VersionDraft): Promise<Version> {
+  const t = now();
+  const existing = d.id ? await db.versions.get(d.id) : undefined;
+  const diff = computeDifficulty(d.content, d.tuning, d.bpm);
+  const v: Version = {
+    ...d,
+    id: existing?.id ?? d.id ?? uuid(),
+    authorId: existing?.authorId ?? ownerForNewRow(),
+    contentHash: contentHash(d.content),
+    difficultyScore: diff.score,
+    difficultyLevel: diff.level,
+    createdAt: existing?.createdAt ?? t,
+    updatedAt: t,
+  };
+  await db.transaction("rw", db.versions, db.outbox, async () => {
+    await db.versions.put(v);
+    await queue("versions", "upsert", v.id);
+  });
+  return done(v);
+}
+
+export async function deleteVersion(id: string): Promise<void> {
+  await db.transaction("rw", db.versions, db.library, db.outbox, async () => {
+    const v = await db.versions.get(id);
+    await db.versions.delete(id);
+    await queue("versions", "delete", id);
+    if (v) {
+      const e = await db.library.get(v.songId);
+      if (e?.preferredVersionId === id) {
+        await db.library.put({ ...e, preferredVersionId: undefined, updatedAt: now() });
+        await queue("library", "upsert", v.songId);
+      }
+    }
+  });
+  done(undefined);
+}
+
+/** Copies someone's public version into your own (private) versions, keeping the credit. */
+export async function copyVersion(from: Version): Promise<Version> {
+  const { id: _id, authorId: _a, createdAt: _c, updatedAt: _u, contentHash: _h, difficultyScore: _s, difficultyLevel: _l, ...rest } = from;
+  return saveVersion({ ...rest, basedOn: from.id, visibility: "private" });
+}
+
+/** The version that opens by default for this song (and plays from playlists). */
+export async function setPreferredVersion(songId: string, versionId: string | undefined): Promise<void> {
+  await db.transaction("rw", db.library, db.outbox, async () => {
+    const e = (await db.library.get(songId)) ?? newEntry(songId, null);
+    await db.library.put({ ...e, preferredVersionId: versionId, updatedAt: now() });
+    await queue("library", "upsert", songId);
+  });
+  done(undefined);
 }

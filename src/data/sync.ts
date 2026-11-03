@@ -8,7 +8,7 @@
 import { useSyncExternalStore } from "react";
 import { currentUserId, LOCAL_OWNER } from "./auth";
 import { db, type OutboxEntry, type SyncedTable } from "./local-db";
-import { entryToRow, itemToRow, playlistToRow, rowToEntry, rowToItem, rowToPlaylist, rowToSong, songToRow } from "./mappers";
+import { entryToRow, itemToRow, playlistToRow, rowToEntry, rowToItem, rowToPlaylist, rowToSong, rowToVersion, songToRow, versionToRow } from "./mappers";
 import { supabase } from "./supabase";
 
 export type SyncState = { phase: "off" | "idle" | "syncing" | "error"; pending: number; lastSyncedAt?: number; error?: string };
@@ -66,6 +66,7 @@ export async function syncNow(): Promise<void> {
 
 const TABLE: Record<SyncedTable, { name: string; key: string }> = {
   songs: { name: "songs", key: "id" },
+  versions: { name: "versions", key: "id" },
   library: { name: "library_entries", key: "song_id" },
   playlists: { name: "playlists", key: "id" },
   playlistItems: { name: "playlist_items", key: "id" },
@@ -121,6 +122,11 @@ async function push() {
   await up("playlists", pls.map((p) => playlistToRow(p!, uid)), pls.map((p) => p!.id));
   await db.playlists.where("ownerId").equals(LOCAL_OWNER).modify({ ownerId: uid });
 
+  const verIds = of("versions", "upsert");
+  const vers = (await db.versions.bulkGet(verIds)).filter((v) => !!v && (v.authorId === LOCAL_OWNER || v.authorId === uid));
+  await up("versions", vers.map((v) => versionToRow(v!, uid)), vers.map((v) => v!.id));
+  await db.versions.where("authorId").equals(LOCAL_OWNER).modify({ authorId: uid });
+
   const libIds = of("library", "upsert");
   const libs = (await db.library.bulkGet(libIds)).filter((e) => !!e);
   await up("library", libs.map((e) => entryToRow(e!, uid)), libs.map((e) => e!.songId), "user_id,song_id");
@@ -135,6 +141,7 @@ async function push() {
   }
 
   await del("library");
+  await del("versions");
   await del("playlists");
   await del("songs");
 
@@ -163,12 +170,13 @@ export async function pull(): Promise<void> {
   const uid = currentUserId();
   if (!sb || !uid) return;
 
-  const [mySongs, lib, pls] = await Promise.all([
+  const [mySongs, lib, pls, vers] = await Promise.all([
     sb.from("songs").select("*").eq("created_by", uid),
     sb.from("library_entries").select("*").eq("user_id", uid),
     sb.from("playlists").select("*").eq("owner_id", uid),
+    sb.from("versions").select("*").eq("author_id", uid),
   ]);
-  if (mySongs.error || lib.error || pls.error) throw mySongs.error ?? lib.error ?? pls.error;
+  if (mySongs.error || lib.error || pls.error || vers.error) throw mySongs.error ?? lib.error ?? pls.error ?? vers.error;
 
   const plIds = (pls.data ?? []).map((p) => p.id as string);
   const items = plIds.length ? await sb.from("playlist_items").select("*").in("playlist_id", plIds) : { data: [], error: null };
@@ -183,7 +191,14 @@ export async function pull(): Promise<void> {
   const pending = await db.outbox.toArray();
   const isPending = (t: SyncedTable, id: string) => pending.some((p) => p.table === t && p.rowId === id);
 
-  await db.transaction("rw", [db.songs, db.library, db.playlists, db.playlistItems], async () => {
+  await db.transaction("rw", [db.songs, db.versions, db.library, db.playlists, db.playlistItems], async () => {
+    // your versions
+    const remoteVers = (vers.data ?? []).map(rowToVersion);
+    const remoteVerIds = new Set(remoteVers.map((v) => v.id));
+    await db.versions.bulkPut(remoteVers.filter((v) => !isPending("versions", v.id)));
+    const localVers = await db.versions.where("authorId").equals(uid).toArray();
+    await db.versions.bulkDelete(localVers.filter((v) => !remoteVerIds.has(v.id) && !isPending("versions", v.id)).map((v) => v.id));
+
     // songs (yours, then others' you saved)
     const remoteSongs = [...(mySongs.data ?? []), ...(otherSongs.data ?? [])].map(rowToSong);
     await db.songs.bulkPut(remoteSongs.filter((s) => !isPending("songs", s.id)));

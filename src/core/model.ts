@@ -122,7 +122,12 @@ export interface ArrangementItem {
 export interface VersionContent {
   sections: Section[];
   arrangement: ArrangementItem[];
+  /** Which shape to show for a chord name in this version (otherwise the default shape). */
+  voicings?: Record<string, { frets: number[]; fingers: number[]; baseFret: number }>;
 }
+
+export const VERSION_TAGS = ["cover", "live", "acoustic", "original", "simplified", "fingerstyle"] as const;
+export type VersionTag = (typeof VERSION_TAGS)[number];
 
 export type DifficultyLevel = "beginner" | "intermediate" | "advanced";
 
@@ -142,6 +147,9 @@ export interface Version {
   bpm?: number;
   timeSignature?: string;
   techniques: string[];
+  /** Short name for this take, e.g. "Easy version". */
+  label?: string;
+  tags: VersionTag[];
   content: VersionContent;
   /** Hash of the canonical content + tuning + capo. Used to refuse an exact duplicate of a public version. */
   contentHash?: string;

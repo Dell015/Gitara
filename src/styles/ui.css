@@ -1926,3 +1926,596 @@ select.input {
 .liveart__canvas[data-on="true"] {
   opacity: 1;
 }
+
+/* ============================================================ chords (Phase 2)
+ * The chart is content: solid tone steps, no glass, no light behind it. The playing bar is marked
+ * by weight, a lit underline and a tone step together, so it reads without colour.
+ */
+.chordname {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-feature-settings: "tnum";
+}
+.btn--sm {
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  font-size: 0.875rem;
+}
+.input--sm {
+  min-height: 40px;
+  font-size: max(16px, 0.9375rem);
+}
+.page-title--sm {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+}
+.herocard__title--sm {
+  font-size: clamp(1.5rem, 5.5vw, 2.25rem);
+}
+.herocard__song {
+  font-size: 0.9375rem;
+  color: rgb(236 239 241 / 0.85);
+}
+.link--danger {
+  color: #f08a6e;
+}
+.kbdtext {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--ink-2);
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* chord box */
+.chordbox {
+  display: block;
+  overflow: visible;
+}
+.chordbox__fret,
+.chordbox__string {
+  stroke: rgb(236 239 241 / 0.38);
+  stroke-width: 1;
+}
+.chordbox__nut {
+  fill: var(--text);
+}
+.chordbox__pos {
+  fill: var(--text-2);
+  font-size: 10px;
+  font-weight: 600;
+}
+.chordbox__dot {
+  fill: var(--text);
+}
+.chordbox[data-on="true"] .chordbox__dot {
+  fill: var(--amber);
+}
+.chordbox__finger {
+  fill: var(--ink-0);
+  font-size: 8.5px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.chordbox__open {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.4;
+}
+.chordbox__mute line {
+  stroke: var(--text-2);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* strum arrows */
+.strumglyph {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.strumglyph[data-step="-"],
+.strumglyph[data-step="x"] {
+  color: var(--text-2);
+}
+
+/* chord sheet: shapes to choose from */
+.shapes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-2);
+}
+.shape {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: var(--space-2) 0 var(--space-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-m);
+  background: rgb(255 255 255 / 0.03);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color var(--dur-hover) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.shape:active {
+  transform: scale(0.97);
+}
+.shape[aria-checked="true"] {
+  border-color: var(--amber);
+  background: rgb(224 133 71 / 0.08);
+}
+.shape__frets {
+  color: var(--text-2);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+/* fretboard builder */
+.fretboard {
+  display: grid;
+  gap: 0;
+  border-radius: var(--radius-s);
+  background: var(--ink-1);
+  padding: var(--space-2);
+}
+.fb__nut,
+.fb__cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 48px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.fb__nut {
+  height: 40px;
+  border-bottom: 3px solid var(--text);
+}
+.fb__cell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: rgb(236 239 241 / 0.35);
+}
+.fb__cell {
+  border-bottom: 1px solid rgb(236 239 241 / 0.22);
+}
+.fb__dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--amber);
+  color: var(--ink-0);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.fb__o {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text);
+  border-radius: 50%;
+}
+.fb__x {
+  position: relative;
+  width: 14px;
+  height: 14px;
+}
+.fb__x::before,
+.fb__x::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: -1px;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--text-2);
+  transform: rotate(45deg);
+}
+.fb__x::after {
+  transform: rotate(-45deg);
+}
+.fb__pos {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+
+/* view tools */
+.tools {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 calc(var(--space-4) * -1);
+  padding: 2px var(--space-4);
+}
+.tools::-webkit-scrollbar {
+  display: none;
+}
+.stepper {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  padding: 0 2px 0 var(--space-3);
+  border-radius: 999px;
+  background: var(--ink-2);
+}
+.stepper__label {
+  margin-right: var(--space-1);
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.stepper__value {
+  min-width: 2.4em;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.stepper__btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color var(--dur-hover) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.stepper__btn svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.stepper__btn:active {
+  transform: scale(0.9);
+  background: var(--ink-3);
+}
+@media (hover: hover) {
+  .stepper__btn:hover {
+    background: var(--ink-3);
+  }
+}
+
+/* chords used */
+.chordstrip {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 calc(var(--space-4) * -1);
+  padding: 2px var(--space-4);
+}
+.chordstrip::-webkit-scrollbar {
+  display: none;
+}
+.chordcard {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  border: 0;
+  border-radius: var(--radius-m);
+  background: var(--ink-1);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color var(--dur-hover) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.chordcard:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) {
+  .chordcard:hover {
+    background: var(--ink-2);
+  }
+}
+
+/* the chart */
+.chart {
+  display: grid;
+  gap: var(--space-5);
+  --chord-size: 1.25rem;
+}
+.chart--s {
+  --chord-size: 1.05rem;
+}
+.chart--l {
+  --chord-size: 1.6rem;
+}
+.csec {
+  display: grid;
+  gap: var(--space-2);
+}
+.csec__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.csec__title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.csec[data-active="true"] .csec__title {
+  color: var(--amber);
+}
+.csec__rep {
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.csec__note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+.strum {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: var(--ink-1);
+  color: var(--text);
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .strum:hover {
+    background: var(--ink-2);
+  }
+}
+.bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--space-1);
+}
+.bars--mini {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+.cbar {
+  display: flex;
+  min-height: 56px;
+  border-radius: var(--radius-s);
+  background: var(--ink-1);
+  box-shadow: inset 0 -2px 0 transparent;
+  overflow: hidden;
+  transition: background-color 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+}
+.bars--mini .cbar {
+  min-height: 44px;
+}
+.cbar + .cbar {
+  position: relative;
+}
+.cbar[data-on="true"] {
+  background: var(--ink-3);
+  box-shadow: inset 0 -3px 0 var(--amber);
+}
+.cbar__chord {
+  flex-basis: 0;
+  display: grid;
+  place-items: center start;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--chord-size);
+  cursor: pointer;
+  min-width: 0;
+}
+.bars--mini .cbar__chord {
+  font-size: 1rem;
+}
+.cbar__chord + .cbar__chord {
+  border-left: 1px dashed rgb(236 239 241 / 0.18);
+}
+.cbar[data-on="true"] .cbar__chord {
+  font-weight: 800;
+}
+
+/* version rows on the song page */
+.vrow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-m);
+  background: var(--ink-1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-hover) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.vrow:active {
+  transform: scale(0.99);
+}
+@media (hover: hover) {
+  .vrow:hover {
+    background: var(--ink-2);
+  }
+}
+.vrow__chords {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+.vrow__mark {
+  margin-left: var(--space-2);
+  color: var(--amber);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* editor */
+.esec {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--ink-1);
+}
+.esec__head {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.6fr) 1fr;
+  gap: var(--space-2);
+}
+.esec__chords {
+  min-height: 72px;
+  padding: var(--space-3);
+  resize: vertical;
+  font-weight: 600;
+  font-size: max(16px, 1.0625rem);
+  line-height: 1.5;
+}
+.esec__strum {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.strumedit {
+  display: flex;
+  gap: 2px;
+}
+.strumedit__step {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ink-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.strumedit__step:active {
+  transform: scale(0.92);
+}
+.strumedit__step:nth-child(odd) {
+  background: var(--ink-3);
+}
+.esec__actions {
+  display: flex;
+  gap: var(--space-4);
+}
+.arr {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.arr__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-radius: var(--radius-s);
+  background: var(--ink-1);
+}
+.arr__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.iconbtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.form__footer--row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+@media (min-width: 900px) {
+  .tools,
+  .chordstrip {
+    margin: 0;
+    padding: 2px 0;
+    flex-wrap: wrap;
+  }
+  .bars {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .bars--mini {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+  .cbar {
+    min-height: 64px;
+  }
+}
+
+/* never let a wide row push the page sideways on a phone */
+.page {
+  overflow-x: clip;
+}
+.page > *,
+.esec,
+.esec__head > *,
+.form__grid > * {
+  min-width: 0;
+}
+.arr__name {
+  flex-basis: 100%;
+  padding-top: var(--space-2);
+}
+@media (min-width: 600px) {
+  .arr__name {
+    flex-basis: auto;
+    padding-top: 0;
+  }
+}

@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import type { LibraryEntry, Playlist, Song } from "../core/model";
+import { chordsUsed } from "../core/chart";
 import { db } from "../data/local-db";
 
 export interface LibrarySong {
@@ -53,4 +54,30 @@ export function formatDuration(sec?: number): string | undefined {
 
 export function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
+}
+
+/**
+ * "Songs I can play": the chords you know are the chords in the songs you're Performing (their
+ * default version, or your own). A liked song whose default version uses only those chords counts.
+ */
+export function useCanPlay(): Set<string> | undefined {
+  return useLiveQuery(async () => {
+    const entries = await db.library.toArray();
+    const versions = await db.versions.toArray();
+    const pick = (songId: string, pref?: string) => {
+      const vs = versions.filter((v) => v.songId === songId);
+      return vs.find((v) => v.id === pref) ?? vs[0];
+    };
+    const known = new Set<string>();
+    for (const e of entries) if (e.status === "performing") for (const c of chordsUsed(pick(e.songId, e.preferredVersionId)?.content ?? { sections: [], arrangement: [] })) known.add(c);
+    const out = new Set<string>();
+    if (!known.size) return out;
+    for (const e of entries) {
+      const v = pick(e.songId, e.preferredVersionId);
+      if (!v) continue;
+      const cs = chordsUsed(v.content);
+      if (cs.length && cs.every((c) => known.has(c))) out.add(e.songId);
+    }
+    return out;
+  });
 }

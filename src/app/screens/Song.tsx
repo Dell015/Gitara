@@ -1,6 +1,10 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
+import { audio } from "../../audio/guitar";
+import { chordsUsed } from "../../core/chart";
+import { tuningName } from "../../core/tunings";
 import { isMine } from "../../data/auth";
+import { publicVersionsForSong } from "../../data/remote";
 import { db } from "../../data/local-db";
 import * as repo from "../../data/repo";
 import { Empty, TopBar } from "../../ui/bits";
@@ -13,6 +17,7 @@ import { useNav } from "../nav";
 import { useOverlays } from "../overlays";
 import { SongList } from "../rows";
 
+const LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" } as const;
 const STATUS_LABEL = { planning: "Planning to learn", learning: "Learning", performing: "Performing" } as const;
 
 function youtubeId(url?: string): string | null {
@@ -36,6 +41,13 @@ export function SongScreen({ id }: { id: string }) {
     return db.songs.where("artist").equals(song.artist).filter((s) => s.id !== id).limit(5).toArray();
   }, [song?.artist, id]);
   const [showVideo, setShowVideo] = useState(false);
+  const localVersions = useLiveQuery(() => db.versions.where("songId").equals(id).toArray(), [id]);
+  useEffect(() => {
+    publicVersionsForSong(id).catch(() => undefined);
+  }, [id]);
+  const versions = [...(localVersions ?? [])].sort(
+    (a, b) => Number(isMine(b.authorId)) - Number(isMine(a.authorId)) || b.updatedAt.localeCompare(a.updatedAt),
+  );
 
   useEffect(() => {
     void repo.touchRecent("song", id);
@@ -106,7 +118,17 @@ export function SongScreen({ id }: { id: string }) {
               )}
             </button>
             <span className="actions__spacer" />
-            <button className="btn btn--primary btn--big" disabled title="Play-along needs chords, which come next">
+            <button
+              className="btn btn--primary btn--big"
+              disabled={!versions.length}
+              title={versions.length ? undefined : "Add a chord version first"}
+              onClick={() => {
+                const pick = versions.find((x) => x.id === entry?.preferredVersionId) ?? versions[0];
+                if (!pick) return;
+                audio(); // sound can only start from a tap
+                nav.push({ name: "version", id: pick.id, play: true });
+              }}
+            >
               Play along
             </button>
           </div>
@@ -148,8 +170,40 @@ export function SongScreen({ id }: { id: string }) {
       )}
 
       <section className="block">
-        <h2 className="h2">Versions</h2>
-        <Empty title="No chord versions yet" text="Chord versions come in the next update: sections, chords on the beat, tuning and capo." />
+        <div className="block__head">
+          <h2 className="h2">Versions</h2>
+          <button className="link" onClick={() => nav.push({ name: "editVersion", songId: id })}>
+            Add yours
+          </button>
+        </div>
+        {versions.length ? (
+          <ul className="list">
+            {versions.map((x) => (
+              <li key={x.id}>
+                <button className="vrow" onClick={() => nav.push({ name: "version", id: x.id })}>
+                  <span className="irow__main">
+                    <span className="irow__title">
+                      {x.label || (isMine(x.authorId) ? "Your version" : "Version")}
+                      {entry?.preferredVersionId === x.id && <span className="vrow__mark">Opens first</span>}
+                    </span>
+                    <span className="irow__sub num">
+                      {[tuningName(x.tuning), x.capo ? `Capo ${x.capo}` : "No capo", x.keyPlayed && `Key ${x.keyPlayed}`, x.difficultyLevel && LEVEL[x.difficultyLevel], x.visibility !== "public" ? (x.visibility === "unlisted" ? "Link only" : "Private") : isMine(x.authorId) ? "Public" : undefined, ...x.tags]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                  <span className="vrow__chords chordname">{chordsUsed(x.content).slice(0, 5).join(" ")}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty title="No chord versions yet" text="Be the first: type the chords section by section and Gitara turns them into bars you can play along with.">
+            <button className="btn btn--primary" onClick={() => nav.push({ name: "editVersion", songId: id })}>
+              Add the chords
+            </button>
+          </Empty>
+        )}
       </section>
 
       {inPlaylists && inPlaylists.length > 0 && (

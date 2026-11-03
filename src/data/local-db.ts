@@ -6,7 +6,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { LibraryEntry, Playlist, PlaylistItem, Shape, Song, Version } from "../core/model";
 
-export type SyncedTable = "songs" | "library" | "playlists" | "playlistItems";
+export type SyncedTable = "songs" | "versions" | "library" | "playlists" | "playlistItems";
 
 export interface OutboxEntry {
   seq?: number; // auto-increment
@@ -55,6 +55,10 @@ export class GitaraDB extends Dexie {
       playlists: "id, updatedAt, ownerId, pinnedAt",
       outbox: "++seq, table, rowId, createdAt",
       recents: "key, openedAt",
+    });
+    // v3 (Phase 2): find your own versions quickly.
+    this.version(3).stores({
+      versions: "id, songId, updatedAt, authorId",
     });
   }
 }
