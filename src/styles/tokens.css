@@ -1,0 +1,58 @@
+/*
+ * Design tokens: "Ember on Teal" (docs/aboutproject.md §5.15).
+ * First-pass values taken from the reference images, turned down. They are meant to be tuned on
+ * real devices; change them here and nowhere else.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Ink: the near-black teal night. Each step is one tone lighter; content surfaces use these. */
+  --ink-0: #0b1014;
+  --ink-1: #10171c;
+  --ink-2: #161e24;
+  --ink-3: #1d262d;
+
+  /* Teal: soft ambient light in a corner, never a flood. */
+  --teal-deep: #112e33;
+  --teal: #173e41;
+
+  /* Warm light: reserved for meaning (the playing chord, the playhead, the beat, progress). */
+  --amber: #e08547;
+  --ember: #c4472e;
+  --blood: #75171e;
+
+  --text: #eceff1;
+  --text-2: #8a979e; /* secondary text; about 6:1 on --ink-0 */
+
+  --font: "Montserrat Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Spacing (4px base) and radii */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-s: 10px;
+  --radius-m: 16px;
+  --radius-l: 24px;
+
+  /*
+   * Motion (docs/aboutproject.md §5.16): strong ease-out for UI, never ease-in; UI moves under ~300ms.
+   * --ease-drawer is the iOS-like curve for sheets.
+   */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 120ms;
+  --dur-hover: 180ms;
+  --dur-pop: 200ms;
+  --dur-sheet: 320ms;
+
+  /* Glass: only for the floating layer (tab bar, player bar, sheets, menus). Content uses --ink-* steps. */
+  --glass-fill: rgb(255 255 255 / 0.05);
+  --glass-line: rgb(255 255 255 / 0.09);
+  --glass-blur: 22px;
+  --glass-solid: var(--ink-2); /* fallback when blur isn't available or transparency is reduced */
+}

@@ -1,0 +1,45 @@
+/* Styles for the Phase 0 build-check page only. This is a working page, not the real UI. */
+.check {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.check__wordmark {
+  margin: 0 0 var(--space-5);
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: 0.32em; /* wide-tracked caps: the wordmark only (docs §5.16) */
+  text-transform: uppercase;
+}
+
+.check__intro {
+  margin: 0 0 var(--space-5);
+  color: var(--text-2);
+}
+
+.check__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.check__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--ink-2);
+}
+
+.check__state {
+  color: var(--text-2);
+  text-align: right;
+}
+
+.check__state[data-ok="true"] {
+  color: var(--text);
+}

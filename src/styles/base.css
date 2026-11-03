@@ -1,0 +1,100 @@
+/* Reset and the browser surfaces the design system must own: selection, focus, scrollbars, numerals. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh; /* dvh, not vh: the iOS Safari toolbar makes 100vh taller than the visible screen */
+  background: var(--ink-0);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent; /* no grey flash on tap */
+  overscroll-behavior-y: none; /* no pull-to-refresh hijacking */
+  /* keep content out of the notch and home indicator */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+button,
+a,
+summary,
+[role="button"] {
+  touch-action: manipulation; /* removes the double-tap-zoom delay */
+}
+
+/* iOS zooms the page when an input is focused and its text is under 16px */
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: max(16px, 1em);
+  color: inherit;
+}
+
+::selection {
+  background: rgb(224 133 71 / 0.35);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  border-radius: var(--radius-s);
+}
+
+/* BPM, timers and counts must not jitter as digits change */
+.num,
+[data-num] {
+  font-variant-numeric: tabular-nums;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-3) transparent;
+}
+
+/* Reminder for component styles: wrap hover effects in @media (hover: hover) so touch screens never get a stuck hover. */
+
+.glass {
+  background: var(--glass-solid);
+  border: 1px solid var(--glass-line);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .glass {
+    background: var(--glass-fill);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
+  }
+}
+
+/* "Reduce transparency": solid surfaces instead of glass */
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background: var(--glass-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* "Reduce motion": no movement, state changes still apply instantly */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
