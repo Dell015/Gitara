@@ -6,6 +6,7 @@ import { db } from "../../data/local-db";
 import { publicSongsByArtist } from "../../data/remote";
 import * as repo from "../../data/repo";
 import { Empty, Segmented, TopBar } from "../../ui/bits";
+import { Hero } from "../../ui/Hero";
 import { plural } from "../hooks";
 import { useNav } from "../nav";
 import { SongList } from "../rows";
@@ -30,13 +31,15 @@ export function ArtistScreen({ artist }: { artist: string }) {
 
   return (
     <>
-      <TopBar onBack={nav.back} />
-      <header className="page-head">
-        <h1 className="page-title">{artist}</h1>
-        <p className="muted num">
-          {plural(all.length, "song")} in Gitara{yours.length ? ` · ${yours.length} in your Library` : ""}
-        </p>
-      </header>
+      <TopBar over onBack={nav.back} />
+      <Hero seed={artist} warmth={0.8} short>
+        <div className="glass glass--card herocard">
+          <h1 className="herocard__title">{artist}</h1>
+          <p className="herocard__meta num">
+            {plural(all.length, "song")} in Gitara{yours.length ? ` · ${yours.length} in your Library` : ""}
+          </p>
+        </div>
+      </Hero>
       {all.length > 1 && (
         <div className="block">
           <Segmented

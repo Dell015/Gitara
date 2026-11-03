@@ -1,5 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import type { LearnStatus, Song } from "../core/model";
+import { Art } from "./Art";
+import { warmthFor } from "./artwork";
 import { HeatMark } from "./HeatMark";
 import { IconHeart, IconMore } from "./icons";
 
@@ -29,7 +31,7 @@ export function SongRow({
   const el = useRef<HTMLDivElement>(null);
   const g = useRef<{ x: number; y: number; dx: number; lock: "x" | "y" | null; t?: number; long: boolean } | null>(null);
 
-  const meta = [song.artist, song.originalKey, song.originalBpm ? `${song.originalBpm} bpm` : undefined].filter(Boolean).join(" · ");
+  const extra = [song.originalKey, song.originalBpm ? `${song.originalBpm} bpm` : undefined].filter(Boolean).join(" · ");
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -89,6 +91,7 @@ export function SongRow({
         }}
       >
         {lead}
+        <Art seed={song.id} warmth={warmthFor(status)} className="srow__art" />
         <button
           className="srow__main"
           onClick={() => {
@@ -97,9 +100,14 @@ export function SongRow({
           }}
         >
           <span className="srow__title">{song.title}</span>
-          <span className="srow__sub num">{meta}</span>
+          <span className="srow__sub num">
+            {song.artist}
+            {extra && <span className="srow__phonemeta"> · {extra}</span>}
+          </span>
         </button>
-        {status ? <HeatMark heat={status} /> : null}
+        <span className="srow__col srow__col--key num">{song.originalKey ?? ""}</span>
+        <span className="srow__col srow__col--bpm num">{song.originalBpm ? `${song.originalBpm} bpm` : ""}</span>
+        <span className="srow__col srow__col--heat">{status ? <HeatMark heat={status} /> : null}</span>
         {trail}
         <button className="srow__icon" data-on={liked} aria-pressed={liked} aria-label={liked ? "Unlike" : "Like"} onClick={onLike}>
           <IconHeart filled={liked} />

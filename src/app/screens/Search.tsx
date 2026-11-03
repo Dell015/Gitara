@@ -6,10 +6,12 @@ import { db } from "../../data/local-db";
 import { searchRecordings, type MbSuggestion } from "../../data/musicbrainz";
 import { searchPublicSongs } from "../../data/remote";
 import { Chips, Empty, ItemRow, Mark } from "../../ui/bits";
+import { Art } from "../../ui/Art";
 import { IconClose, IconSearch } from "../../ui/icons";
 import { useNav } from "../nav";
 import { ConnectedSongRow } from "../rows";
 import { ScreenHead } from "../Shell";
+import { useSearch } from "../searchStore";
 import { useLiveQuery } from "dexie-react-hooks";
 
 type Kind = "songs" | "artists" | "playlists";
@@ -32,7 +34,7 @@ function saveRecent(list: string[]) {
 
 export function Search() {
   const nav = useNav();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useSearch();
   const [kind, setKind] = useState<Kind | null>(null);
   const [remote, setRemote] = useState<Song[]>([]);
   const [remoteState, setRemoteState] = useState<"idle" | "loading" | "offline">("idle");
@@ -100,7 +102,7 @@ export function Search() {
     <>
       <ScreenHead title="Search" tracked />
       <form
-        className="searchbar"
+        className="searchbar searchbar--page"
         role="search"
         onSubmit={(e) => {
           e.preventDefault();
@@ -157,7 +159,8 @@ export function Search() {
             <div className="tiles">
               {GENRES.map((g) => (
                 <button key={g} className="tile" onClick={() => nav.push({ name: "browse", genre: g })}>
-                  {g}
+                  <Art seed={`genre-${g}`} res={[72, 40]} className="tile__art" />
+                  <span className="tile__label glass">{g}</span>
                 </button>
               ))}
             </div>
@@ -194,7 +197,7 @@ export function Search() {
               {!kind && <h2 className="h2">Artists</h2>}
               <div className="list">
                 {results.artists.slice(0, kind ? 50 : 4).map((a) => (
-                  <ItemRow key={a} title={a} sub="Artist" lead={<Mark kind="artist" />} onClick={() => nav.push({ name: "artist", artist: a })} />
+                  <ItemRow key={a} title={a} sub="Artist" lead={<Mark kind="artist" seed={a} />} onClick={() => nav.push({ name: "artist", artist: a })} />
                 ))}
               </div>
             </section>
@@ -204,7 +207,7 @@ export function Search() {
               {!kind && <h2 className="h2">Playlists</h2>}
               <div className="list">
                 {results.pls.map((p) => (
-                  <ItemRow key={p.id} title={p.name} sub="Playlist" lead={<Mark kind="playlist" />} onClick={() => nav.goTo("library", { name: "playlist", id: p.id })} />
+                  <ItemRow key={p.id} title={p.name} sub="Playlist" lead={<Mark kind="playlist" seed={p.id} />} onClick={() => nav.goTo("library", { name: "playlist", id: p.id })} />
                 ))}
               </div>
             </section>

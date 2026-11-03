@@ -4,6 +4,10 @@ import type { Song } from "../../core/model";
 import { db } from "../../data/local-db";
 import { recentPublicSongs } from "../../data/remote";
 import { Empty, Mark } from "../../ui/bits";
+import { Art } from "../../ui/Art";
+import { LiveArt } from "../../ui/LiveArt";
+import { warmthFor } from "../../ui/artwork";
+import { IconArrow } from "../../ui/icons";
 import { HeatMark } from "../../ui/HeatMark";
 import { greeting, useLibrarySongs } from "../hooks";
 import { useNav } from "../nav";
@@ -15,16 +19,16 @@ export function Home() {
   const lib = useLibrarySongs();
   const recents = useLiveQuery(async () => {
     const r = await db.recents.orderBy("openedAt").reverse().limit(8).toArray();
-    const out: { key: string; title: string; kind: "song" | "playlist" | "artist"; go: () => void }[] = [];
+    const out: { key: string; seed: string; warmth?: number; title: string; kind: "song" | "playlist" | "artist"; go: () => void }[] = [];
     for (const x of r) {
       if (x.kind === "song") {
         const s = await db.songs.get(x.refId);
-        if (s) out.push({ key: x.key, title: s.title, kind: "song", go: () => nav.push({ name: "song", id: s.id }) });
+        if (s) out.push({ key: x.key, seed: s.id, warmth: warmthFor((await db.library.get(s.id))?.status), title: s.title, kind: "song", go: () => nav.push({ name: "song", id: s.id }) });
       } else if (x.kind === "playlist") {
         const p = await db.playlists.get(x.refId);
-        if (p) out.push({ key: x.key, title: p.name, kind: "playlist", go: () => nav.goTo("library", { name: "playlist", id: p.id }) });
+        if (p) out.push({ key: x.key, seed: p.id, title: p.name, kind: "playlist", go: () => nav.goTo("library", { name: "playlist", id: p.id }) });
       } else {
-        out.push({ key: x.key, title: x.refId, kind: "artist", go: () => nav.push({ name: "artist", artist: x.refId }) });
+        out.push({ key: x.key, seed: x.refId, title: x.refId, kind: "artist", go: () => nav.push({ name: "artist", artist: x.refId }) });
       }
     }
     return out;
@@ -42,6 +46,7 @@ export function Home() {
   if (lib && !lib.length) {
     return (
       <>
+        <LiveArt seed={`home-${new Date().toISOString().slice(0, 10)}`} style="arc" warmth={0.95} className="ambient" />
         <ScreenHead title={greeting()} />
         <Empty title="Start your songbook" text="Like songs you play or want to learn. They'll show up here and in your Library.">
           <div className="stack">
@@ -63,14 +68,30 @@ export function Home() {
     );
   }
 
+  const last = recents?.find((r) => r.kind === "song");
+  const dayKey = new Date().toISOString().slice(0, 10);
+
   return (
     <>
+      <LiveArt seed={`home-${dayKey}`} style="arc" warmth={0.95} className="ambient" />
       <ScreenHead title={greeting()} />
-      {recents && recents.length > 0 && (
+      {last && (
+        <button className="glass glass--card continue" onClick={last.go}>
+          <Art seed={last.seed} warmth={last.warmth} className="continue__art" />
+          <span className="continue__text">
+            <span className="continue__label">Continue</span>
+            <span className="continue__title">{last.title}</span>
+          </span>
+          <span className="ringbtn" aria-hidden="true">
+            <IconArrow />
+          </span>
+        </button>
+      )}
+      {recents && recents.length > 1 && (
         <div className="quick">
-          {recents.map((r) => (
+          {recents.filter((r) => r !== last).slice(0, 6).map((r) => (
             <button key={r.key} className="quick__item" onClick={r.go}>
-              <Mark kind={r.kind} />
+              <Mark kind={r.kind} seed={r.seed} warmth={r.warmth} />
               <span className="quick__title">{r.title}</span>
             </button>
           ))}

@@ -1173,3 +1173,756 @@ select.input {
     bottom: var(--space-5);
   }
 }
+
+/* ============================================================ light and glass (2026-11-04)
+ * Where the reference look comes from:
+ * 1. Light: generated "heat light" artwork (ui/art.ts), only where it means something: a song's or
+ *    playlist's face, the top of a song page, Home's arc, genre tiles. Lists, charts and forms stay ink.
+ * 2. Grain: one crisp noise tile (--grain) laid over light with `overlay` blending, so it shows on the
+ *    bright parts and disappears in the black, like film. Small elements only (blend is costly).
+ * 3. Glass: only floating or overlapping things (tab bar, sheets, the hero card, round buttons over
+ *    artwork, genre labels). Dark tint + 18px blur + saturation, a lit top rim, its own faint grain.
+ *    Never under body text in lists; solid fallback for Reduce transparency.
+ */
+.art {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background-color: var(--ink-2);
+  /* !important: older .mark rules use the background shorthand, which would reset these */
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  border-radius: var(--radius-s);
+  isolation: isolate;
+}
+.art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain);
+  background-size: 128px 128px;
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.art--round {
+  border-radius: 50%;
+}
+.mark.art {
+  background-color: var(--ink-2);
+}
+.srow__art {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 8px;
+}
+.srow {
+  padding-left: var(--space-2);
+}
+
+/* glass recipe (position comes from each component: fixed bars, absolute sheets, relative cards) */
+.glass {
+  background: var(--glass-solid);
+  border: 1px solid rgb(255 255 255 / 0.08);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .glass {
+    background:
+      linear-gradient(165deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.025) 38%, rgb(255 255 255 / 0.015) 70%, rgb(255 255 255 / 0.05)),
+      rgb(10 15 18 / 0.5);
+    -webkit-backdrop-filter: blur(18px) saturate(175%);
+    backdrop-filter: blur(18px) saturate(175%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.16),
+      inset 0 -1px 0 rgb(255 255 255 / 0.04),
+      0 12px 32px rgb(0 0 0 / 0.32);
+  }
+}
+/* the glass's own fine grain, so it reads as frosted material, not a tinted hole */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--grain);
+  background-size: 128px 128px;
+  opacity: 0.05;
+  pointer-events: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background: var(--glass-solid) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+.glass--card {
+  border-radius: 24px;
+}
+.tabs.glass,
+.sheet.glass {
+  background-color: rgb(12 17 21 / 0.62);
+}
+.tabs > *,
+.sheet > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* round buttons: outlined on glass (references 3 and 4), solid glass over artwork */
+.ringbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 1.25px solid rgb(255 255 255 / 0.55);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-hover) var(--ease-out), background-color var(--dur-hover) var(--ease-out);
+}
+.ringbtn .icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5;
+}
+.ringbtn:active {
+  transform: scale(0.94);
+}
+.ringbtn[data-on="true"] {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+@media (hover: hover) {
+  .ringbtn:hover {
+    background: rgb(255 255 255 / 0.08);
+    border-color: rgb(255 255 255 / 0.85);
+  }
+}
+.glassbtn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 50%;
+  background: rgb(10 15 18 / 0.42);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.glassbtn .icon {
+  width: 20px;
+  height: 20px;
+}
+.glassbtn:active {
+  transform: scale(0.94);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glassbtn {
+    background: var(--ink-2);
+    backdrop-filter: none;
+  }
+}
+.topbar--over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: calc(env(safe-area-inset-top) + var(--space-2)) var(--space-3) 0;
+  background: none;
+  z-index: 6;
+}
+
+/* hero: full-bleed artwork fading into the ink, with the glass card on its lower edge */
+.hero {
+  position: relative;
+  margin: calc(var(--space-3) * -1) calc(var(--space-4) * -1) 0;
+  min-height: clamp(380px, 62dvh, 560px);
+  display: flex;
+  align-items: flex-end;
+  padding: 0 var(--space-3);
+}
+.hero--short {
+  min-height: clamp(260px, 40dvh, 380px);
+}
+.hero__art {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent);
+  mask-image: linear-gradient(#000 55%, transparent);
+}
+.hero__content {
+  position: relative;
+  width: 100%;
+}
+.herocard {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: var(--space-5);
+}
+.herocard > * {
+  position: relative;
+  z-index: 1;
+}
+.herocard__title {
+  margin: 0 0 2px;
+  font-size: clamp(1.75rem, 7vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.herocard__meta {
+  margin: 0;
+  color: rgb(236 239 241 / 0.72);
+  font-size: 0.875rem;
+}
+.herocard__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+.statusbtn--glass {
+  min-height: 44px;
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.04);
+}
+
+/* Home: an arc of light behind the greeting, and a Continue card in glass over it */
+.ambient {
+  position: absolute;
+  top: calc(var(--space-3) * -1);
+  left: calc(var(--space-4) * -1);
+  right: calc(var(--space-4) * -1);
+  height: 440px;
+  border-radius: 0;
+  z-index: 0;
+  -webkit-mask-image: linear-gradient(#000 35%, transparent);
+  mask-image: linear-gradient(#000 35%, transparent);
+  pointer-events: none;
+}
+.ambient ~ * {
+  position: relative;
+  z-index: 1;
+}
+.continue {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  margin-top: 96px;
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.continue:active {
+  transform: scale(0.985);
+}
+.continue > * {
+  position: relative;
+  z-index: 1;
+}
+.continue__art {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 14px;
+}
+.continue__text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.continue__label {
+  color: rgb(236 239 241 / 0.7);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.continue__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* genre tiles: artwork with the name on a glass strip */
+.tile {
+  position: relative;
+  overflow: hidden;
+  min-height: 92px;
+  padding: 0;
+  align-content: end;
+  background: var(--ink-2);
+}
+.tile__art {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+}
+.tile__label {
+  position: relative;
+  margin: var(--space-2);
+  padding: 6px var(--space-3);
+  border-radius: 12px;
+  justify-self: start;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+.tile__label::after {
+  border-radius: 12px;
+}
+
+/* grid view tiles: the artwork is the tile */
+.gtile {
+  padding: 0;
+  background: none;
+  min-height: 0;
+  align-content: start;
+}
+.gtile .mark {
+  position: relative;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-m);
+}
+.gtile .mark.art--round {
+  border-radius: 50%;
+}
+@media (hover: hover) {
+  .gtile:hover {
+    background: none;
+  }
+  .gtile:hover .mark {
+    filter: brightness(1.08);
+  }
+}
+.gtile__pin {
+  top: var(--space-2);
+  right: var(--space-2);
+}
+.quick__item .mark {
+  border-radius: 0;
+}
+
+@media (min-width: 900px) {
+  .hero {
+    margin: calc(var(--space-5) * -1) calc(var(--space-6) * -1) 0;
+    padding: 0 var(--space-6);
+    min-height: 420px;
+    border-radius: 0 0 0 0;
+  }
+  .hero--short {
+    min-height: 320px;
+  }
+  .herocard {
+    max-width: 40rem;
+  }
+  .ambient {
+    top: calc(var(--space-5) * -1);
+    left: calc(var(--space-6) * -1);
+    right: calc(var(--space-6) * -1);
+  }
+  .topbar--over {
+    padding: var(--space-4) var(--space-5) 0;
+  }
+}
+
+/* ============================================================ desktop layout (Spotify desktop as the model)
+ * ≥900px: left sidebar (tabs + your Library) · main panel with a floating top bar (back, search
+ * everywhere, account) · ≥1280px: right "Your practice" panel (becomes Now playing with play-along).
+ * Phone-only bits hide here, desktop-only bits hide on phone.
+ */
+.dbar,
+.rpanel,
+.rpanel-show,
+.hero__cover,
+.srow__col--key,
+.srow__col--bpm {
+  display: none;
+}
+.srow__col--heat {
+  display: contents;
+}
+
+@media (min-width: 900px) {
+  .tabs {
+    width: 300px;
+  }
+  .sidelib__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 0 var(--space-3);
+  }
+  .sidelib__label {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  @media (hover: hover) {
+    .sidelib__label:hover {
+      color: var(--text);
+    }
+  }
+  .sidelib .chips {
+    margin: var(--space-2) 0;
+    padding: 2px var(--space-2);
+    overflow-x: auto;
+  }
+  .sidelib .chip {
+    min-height: 30px;
+    font-size: 0.8125rem;
+  }
+  .sidelib__list {
+    display: grid;
+    align-content: start;
+    gap: 2px;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  .sidelib {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .maincol {
+    margin-left: calc(300px + var(--space-2) * 2);
+    margin-right: var(--space-2);
+    padding-top: var(--space-2);
+    min-height: 100dvh;
+  }
+  .dbar {
+    position: sticky;
+    top: var(--space-2);
+    z-index: 8;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-3);
+    height: 60px;
+    padding: 0 var(--space-3);
+    margin-bottom: var(--space-2);
+    border-radius: 16px;
+    background: rgb(12 17 21 / 0.62);
+    -webkit-backdrop-filter: blur(18px) saturate(170%);
+    backdrop-filter: blur(18px) saturate(170%);
+    border: 1px solid rgb(255 255 255 / 0.07);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+  }
+  .dbar .glassbtn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .dbar__search {
+    justify-self: center;
+    width: min(520px, 100%);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 44px;
+    padding: 0 var(--space-2) 0 var(--space-4);
+    border-radius: 999px;
+    border: 1px solid var(--ink-3);
+    background: var(--ink-2);
+    color: var(--text-2);
+    transition: border-color var(--dur-hover) var(--ease-out), background-color var(--dur-hover) var(--ease-out);
+  }
+  .dbar__search:focus-within {
+    border-color: var(--amber);
+    background: var(--ink-1);
+    color: var(--text);
+  }
+  @media (hover: hover) {
+    .dbar__search:hover {
+      border-color: #33414b;
+    }
+  }
+  .dbar__search .icon {
+    width: 20px;
+    height: 20px;
+    flex: none;
+  }
+  .dbar__search input {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.9375rem;
+  }
+  .dbar__search input::placeholder {
+    color: var(--text-2);
+  }
+  .dbar__kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 24px;
+    height: 24px;
+    margin-right: var(--space-2);
+    border-radius: 6px;
+    border: 1px solid var(--ink-3);
+    color: var(--text-2);
+    font: inherit;
+    font-size: 0.75rem;
+  }
+  .avatar--bar {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* the main panel */
+  .page {
+    margin: 0;
+    max-width: none;
+    min-height: calc(100dvh - 60px - var(--space-2) * 3);
+    padding: var(--space-5) var(--space-6) var(--space-7);
+    border-radius: 16px;
+    background: var(--ink-1);
+    overflow: clip;
+  }
+  .page > * {
+    max-width: 64rem;
+  }
+  .page > .hero,
+  .page > .ambient,
+  .page > .topbar--over {
+    max-width: none;
+  }
+  .screenhead .avatar,
+  .searchbar--page {
+    display: none;
+  }
+  .screenhead {
+    grid-template-columns: 1fr auto;
+  }
+  .topbar--over > .glassbtn:first-child {
+    visibility: hidden; /* back lives in the top bar */
+  }
+  .topbar:not(.topbar--over) {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: none;
+    min-height: 0;
+  }
+  .topbar:not(.topbar--over) > .iconbtn:first-child {
+    display: none;
+  }
+  .topbar:not(.topbar--over) .topbar__title {
+    text-align: left;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  /* album-style header: square artwork on the left, the glass card beside it */
+  .hero {
+    min-height: 380px;
+    padding: 0 var(--space-6) var(--space-2);
+  }
+  .hero--short {
+    min-height: 300px;
+  }
+  .hero__content {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-5);
+  }
+  .hero__cover {
+    display: block;
+    width: 220px;
+    height: 220px;
+    flex: none;
+    border-radius: 14px;
+    box-shadow: 0 18px 48px rgb(0 0 0 / 0.5);
+  }
+  .hero--short .hero__cover {
+    width: 168px;
+    height: 168px;
+  }
+  .herocard {
+    flex: 1;
+    max-width: 44rem;
+  }
+  .herocard__title {
+    font-size: clamp(2.25rem, 4vw, 3.5rem);
+  }
+
+  /* song rows become table rows: art · title/artist · key · tempo · status · like · more */
+  .srow {
+    min-height: 56px;
+  }
+  .srow__col--key,
+  .srow__col--bpm {
+    display: block;
+    flex: none;
+    color: var(--text-2);
+    font-size: 0.875rem;
+  }
+  .srow__col--key {
+    width: 48px;
+  }
+  .srow__phonemeta {
+    display: none;
+  }
+  .srow__col--bpm {
+    width: 80px;
+  }
+  .srow__col--heat {
+    display: flex;
+    width: 36px;
+    flex: none;
+    justify-content: center;
+  }
+  .srow .srow__icon:first-of-type {
+    margin-left: var(--space-2);
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--space-4);
+  }
+  .tiles {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--space-3);
+  }
+  .tile {
+    min-height: 120px;
+  }
+  .continue {
+    max-width: 32rem;
+  }
+
+  /* sheets become centered dialogs (no drag handle; Esc or click outside closes) */
+  .sheet {
+    top: 50%;
+    bottom: auto;
+    max-height: 80dvh;
+    border-radius: 20px;
+    opacity: 0;
+    transform: translateY(-47%) scale(0.98);
+    transition:
+      transform 200ms var(--ease-out),
+      opacity 160ms var(--ease-out);
+  }
+  .sheet-root[data-state="open"] .sheet {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  .sheet__grab {
+    visibility: hidden;
+    padding: var(--space-2) 0 0;
+  }
+
+  .toast-slot {
+    left: calc(300px + var(--space-2) * 2);
+    right: var(--space-2);
+    bottom: var(--space-5);
+  }
+}
+
+@media (min-width: 1280px) {
+  .app:has(.rpanel) .maincol {
+    margin-right: calc(320px + var(--space-2) * 2);
+  }
+  .app:has(.rpanel) .toast-slot {
+    right: calc(320px + var(--space-2) * 2);
+  }
+  .rpanel {
+    position: fixed;
+    top: var(--space-2);
+    right: var(--space-2);
+    bottom: var(--space-2);
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-3);
+    border-radius: 16px;
+    background: var(--ink-1);
+    overflow-y: auto;
+  }
+  .rpanel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: var(--space-2);
+  }
+  .rpanel__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .rpanel .mark {
+    width: 44px;
+    height: 44px;
+  }
+  .rpanel .muted,
+  .rpanel__note {
+    padding: 0 var(--space-2);
+  }
+  .rpanel__note {
+    margin: auto 0 0;
+    color: var(--text-2);
+    font-size: 0.8125rem;
+  }
+  .rpanel-show {
+    display: block;
+    position: fixed;
+    right: var(--space-4);
+    bottom: var(--space-4);
+    z-index: 9;
+    min-height: 36px;
+    padding: 0 var(--space-4);
+    border: 1px solid var(--ink-3);
+    border-radius: 999px;
+    background: var(--ink-1);
+    color: var(--text-2);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
+
+/* live (moving) light: the canvas sits under the grain, over the still it started from */
+.liveart__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 400ms var(--ease-out);
+}
+.liveart__canvas[data-on="true"] {
+  opacity: 1;
+}

@@ -1,11 +1,14 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { startSession } from "../data/auth";
 import { db } from "../data/local-db";
 import { startSync } from "../data/sync";
-import { ItemRow, Mark } from "../ui/bits";
+import { Art } from "../ui/Art";
+import { warmthFor } from "../ui/artwork";
+import { Chips, ItemRow, Mark } from "../ui/bits";
 import { IconHome, IconPerson, IconPin, IconPlus, IconPractice, IconSearch, IconSongs } from "../ui/icons";
-import { plural, usePlaylistCounts } from "./hooks";
+import { DesktopBar, RightPanel } from "./Desktop";
+import { plural, usePlaylistCounts, useLibrarySongs } from "./hooks";
 import { NavProvider, useNav, type Route, type Tab } from "./nav";
 import { OverlayHost } from "./OverlayHost";
 import { OverlayProvider, useOverlays } from "./overlays";
@@ -62,9 +65,13 @@ function Frame() {
         </button>
         <SidebarLibrary />
       </nav>
-      <main className="page" key={key} data-depth={nav.depth}>
-        <Screen route={nav.route} />
-      </main>
+      <div className="maincol">
+        <DesktopBar />
+        <main className="page" key={key} data-depth={nav.depth}>
+          <Screen route={nav.route} />
+        </main>
+      </div>
+      <RightPanel />
       <OverlayHost />
       <ToastView />
     </div>
@@ -110,27 +117,68 @@ export function ScreenHead({ title, tracked, right }: { title: string; tracked?:
   );
 }
 
-/** Desktop only: your Library down the left side, like Spotify desktop. */
+/** Desktop only: your Library down the left side, like Spotify desktop, with its own filter chips. */
 function SidebarLibrary() {
   const nav = useNav();
+  const { open } = useOverlays();
   const counts = usePlaylistCounts();
   const playlists = useLiveQuery(() => db.playlists.toArray());
-  const liked = useLiveQuery(() => db.library.count());
+  const lib = useLibrarySongs();
+  const [show, setShow] = useState<"playlists" | "songs" | "artists" | null>(null);
   const sorted = [...(playlists ?? [])].sort((a, b) => Number(!!b.pinnedAt) - Number(!!a.pinnedAt) || b.updatedAt.localeCompare(a.updatedAt));
+  const songs = [...(lib ?? [])].sort((a, b) => b.entry.updatedAt.localeCompare(a.entry.updatedAt));
+  const artists = [...new Set((lib ?? []).map((x) => x.song.artist))].sort((a, b) => a.localeCompare(b));
   return (
     <div className="sidelib">
-      <p className="sidelib__label">Your Library</p>
-      <ItemRow title="Liked songs" sub={plural(liked ?? 0, "song")} lead={<Mark kind="liked" />} onClick={() => nav.goTo("library", { name: "collection", kind: "liked" })} />
-      {sorted.map((p) => (
-        <ItemRow
-          key={p.id}
-          title={p.name}
-          sub={`Playlist · ${plural(counts?.get(p.id) ?? 0, "song")}`}
-          lead={<Mark kind="playlist" />}
-          trail={p.pinnedAt ? <span className="pin"><IconPin /></span> : undefined}
-          onClick={() => nav.goTo("library", { name: "playlist", id: p.id })}
-        />
-      ))}
+      <div className="sidelib__head">
+        <button className="sidelib__label" onClick={() => nav.switchTab("library")}>
+          Your Library
+        </button>
+        <button className="iconbtn iconbtn--plain" aria-label="Create" onClick={() => open({ kind: "create" })}>
+          <IconPlus />
+        </button>
+      </div>
+      <Chips
+        label="Show in sidebar"
+        value={show}
+        onChange={setShow}
+        options={[
+          { id: "playlists", label: "Playlists" },
+          { id: "songs", label: "Songs" },
+          { id: "artists", label: "Artists" },
+        ]}
+      />
+      <div className="sidelib__list">
+        {(!show || show === "playlists") && (
+          <>
+            {!show && (
+              <ItemRow title="Liked songs" sub={plural(lib?.length ?? 0, "song")} lead={<Mark kind="liked" />} onClick={() => nav.goTo("library", { name: "collection", kind: "liked" })} />
+            )}
+            {sorted.map((p) => (
+              <ItemRow
+                key={p.id}
+                title={p.name}
+                sub={`Playlist · ${plural(counts?.get(p.id) ?? 0, "song")}`}
+                lead={<Mark kind="playlist" seed={p.id} />}
+                trail={p.pinnedAt ? <span className="pin"><IconPin /></span> : undefined}
+                onClick={() => nav.goTo("library", { name: "playlist", id: p.id })}
+              />
+            ))}
+          </>
+        )}
+        {show === "songs" &&
+          songs.map(({ song, entry }) => (
+            <ItemRow
+              key={song.id}
+              title={song.title}
+              sub={song.artist}
+              lead={<Art seed={song.id} warmth={warmthFor(entry.status)} className="mark" />}
+              onClick={() => nav.goTo("library", { name: "song", id: song.id })}
+            />
+          ))}
+        {show === "artists" &&
+          artists.map((a) => <ItemRow key={a} title={a} sub="Artist" lead={<Mark kind="artist" seed={a} />} onClick={() => nav.goTo("library", { name: "artist", artist: a })} />)}
+      </div>
     </div>
   );
 }

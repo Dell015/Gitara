@@ -8,6 +8,9 @@ import "./styles/app.css";
 import "./styles/design.css";
 import "./styles/ui.css";
 import App from "./App";
+import { installGrain } from "./ui/artwork";
+
+installGrain();
 
 // Offline support: the service worker caches the app so it opens without internet.
 // Registered only in production builds, so it never gets in the way of development.

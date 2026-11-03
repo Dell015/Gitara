@@ -5,6 +5,7 @@ import { isMine } from "../../data/auth";
 import { db } from "../../data/local-db";
 import * as repo from "../../data/repo";
 import { Empty, TopBar } from "../../ui/bits";
+import { Hero } from "../../ui/Hero";
 import { IconDrag, IconLock, IconGlobe, IconLink, IconMore, IconPlus } from "../../ui/icons";
 import { formatDuration, plural } from "../hooks";
 import { useNav } from "../nav";
@@ -48,36 +49,39 @@ export function PlaylistScreen({ id }: { id: string }) {
   return (
     <>
       <TopBar
+        over
         onBack={nav.back}
         right={
           mine && (
-            <button className="iconbtn iconbtn--plain" aria-label="Playlist options" onClick={() => open({ kind: "playlistMenu", id })}>
+            <button className="glassbtn" aria-label="Playlist options" onClick={() => open({ kind: "playlistMenu", id })}>
               <IconMore />
             </button>
           )
         }
       />
-      <header className="page-head">
-        <h1 className="page-title">{p.name}</h1>
-        {p.description && <p className="muted">{p.description}</p>}
-        <p className="muted num meta-icons">
-          {PRIVACY[p.visibility].icon}
-          {PRIVACY[p.visibility].label} · {plural(list.length, "song")}
-          {total > 0 && ` · ${formatDuration(total)}`}
-        </p>
-      </header>
-      {mine && (
-        <div className="actions">
-          <button className="btn btn--secondary" onClick={() => open({ kind: "addToPlaylist", playlistId: id })}>
-            <IconPlus /> Add songs
-          </button>
-          {list.length > 1 && (
-            <button className="btn btn--ghost" aria-pressed={editing} onClick={() => setEditing((e) => !e)}>
-              {editing ? "Done" : "Edit order"}
-            </button>
+      <Hero seed={p.id} style="arc">
+        <div className="glass glass--card herocard">
+          <h1 className="herocard__title">{p.name}</h1>
+          {p.description && <p className="herocard__meta">{p.description}</p>}
+          <p className="herocard__meta num meta-icons">
+            {PRIVACY[p.visibility].icon}
+            {PRIVACY[p.visibility].label} · {plural(list.length, "song")}
+            {total > 0 && ` · ${formatDuration(total)}`}
+          </p>
+          {mine && (
+            <div className="herocard__actions">
+              <button className="ringbtn" aria-label="Add songs" onClick={() => open({ kind: "addToPlaylist", playlistId: id })}>
+                <IconPlus />
+              </button>
+              {list.length > 1 && (
+                <button className="statusbtn statusbtn--glass" aria-pressed={editing} onClick={() => setEditing((e) => !e)}>
+                  {editing ? "Done" : "Edit order"}
+                </button>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </Hero>
       {list.length === 0 ? (
         <Empty title="No songs yet" text={mine ? "Add songs from your Library or search Gitara." : undefined} />
       ) : editing ? (

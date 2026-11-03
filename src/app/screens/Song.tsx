@@ -4,7 +4,9 @@ import { isMine } from "../../data/auth";
 import { db } from "../../data/local-db";
 import * as repo from "../../data/repo";
 import { Empty, TopBar } from "../../ui/bits";
+import { warmthFor } from "../../ui/artwork";
 import { HeatMark } from "../../ui/HeatMark";
+import { Hero } from "../../ui/Hero";
 import { IconExternal, IconHeart, IconMore, IconPlus } from "../../ui/icons";
 import { formatDuration } from "../hooks";
 import { useNav } from "../nav";
@@ -54,61 +56,62 @@ export function SongScreen({ id }: { id: string }) {
     .join(" · ");
   const yt = youtubeId(song.youtubeUrl);
 
+  const toggleLike = async () => {
+    if (liked) {
+      const old = await repo.unlike(id);
+      showToast("Removed from your Library", old ? { label: "Undo", run: () => void repo.restoreEntry(old) } : undefined);
+    } else {
+      await repo.like(id);
+      showToast("Added to your Library");
+    }
+  };
+
   return (
     <>
       <TopBar
+        over
         onBack={nav.back}
         right={
-          <button className="iconbtn iconbtn--plain" aria-label="More" onClick={() => open({ kind: "songMenu", songId: id })}>
+          <button className="glassbtn" aria-label="More" onClick={() => open({ kind: "songMenu", songId: id })}>
             <IconMore />
           </button>
         }
       />
-      <header className="page-head">
-        <h1 className="page-title">{song.title}</h1>
-        <button className="artistlink" onClick={() => nav.push({ name: "artist", artist: song.artist })}>
-          {song.artist}
-        </button>
-        {meta && <p className="muted num">{meta}</p>}
-        {song.album && <p className="muted">{song.album}</p>}
-        <p className="muted">{song.visibility === "public" ? "Public" : "Private"}{isMine(song.createdBy) ? " · Added by you" : ""}</p>
-      </header>
-
-      <div className="actions">
-        <button
-          className="iconbtn iconbtn--plain iconbtn--lg"
-          data-on={liked}
-          aria-pressed={liked}
-          aria-label={liked ? "Remove from Library" : "Add to Library"}
-          onClick={async () => {
-            if (liked) {
-              const old = await repo.unlike(id);
-              showToast("Removed from your Library", old ? { label: "Undo", run: () => void repo.restoreEntry(old) } : undefined);
-            } else {
-              await repo.like(id);
-              showToast("Added to your Library");
-            }
-          }}
-        >
-          <IconHeart filled={liked} />
-        </button>
-        <button className="statusbtn" onClick={() => open({ kind: "songMenu", songId: id })}>
-          {entry?.status ? (
-            <>
-              <HeatMark heat={entry.status} /> {STATUS_LABEL[entry.status]}
-            </>
-          ) : (
-            "Set status"
-          )}
-        </button>
-        <button className="iconbtn iconbtn--plain iconbtn--lg" aria-label="Add to playlist" onClick={() => open({ kind: "pickPlaylist", songId: id })}>
-          <IconPlus />
-        </button>
-        <span className="actions__spacer" />
-        <button className="btn btn--primary btn--big" disabled title="Play-along needs chords, which come next">
-          Play along
-        </button>
-      </div>
+      <Hero seed={song.id} warmth={warmthFor(entry?.status)}>
+        <div className="glass glass--card herocard">
+          <h1 className="herocard__title">{song.title}</h1>
+          <button className="artistlink" onClick={() => nav.push({ name: "artist", artist: song.artist })}>
+            {song.artist}
+          </button>
+          {meta && <p className="herocard__meta num">{meta}</p>}
+          <p className="herocard__meta">
+            {song.album ? `${song.album} · ` : ""}
+            {song.visibility === "public" ? "Public" : "Private"}
+            {isMine(song.createdBy) ? " · Added by you" : ""}
+          </p>
+          <div className="herocard__actions">
+            <button className="ringbtn" data-on={liked} aria-pressed={liked} aria-label={liked ? "Remove from Library" : "Add to Library"} onClick={() => void toggleLike()}>
+              <IconHeart filled={liked} />
+            </button>
+            <button className="ringbtn" aria-label="Add to playlist" onClick={() => open({ kind: "pickPlaylist", songId: id })}>
+              <IconPlus />
+            </button>
+            <button className="statusbtn statusbtn--glass" onClick={() => open({ kind: "songMenu", songId: id })}>
+              {entry?.status ? (
+                <>
+                  <HeatMark heat={entry.status} /> {STATUS_LABEL[entry.status]}
+                </>
+              ) : (
+                "Set status"
+              )}
+            </button>
+            <span className="actions__spacer" />
+            <button className="btn btn--primary btn--big" disabled title="Play-along needs chords, which come next">
+              Play along
+            </button>
+          </div>
+        </div>
+      </Hero>
 
       {(yt || song.spotifyUrl || song.youtubeUrl) && (
         <section className="block">

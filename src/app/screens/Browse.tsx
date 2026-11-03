@@ -6,6 +6,7 @@ import { rowToSong } from "../../data/mappers";
 import { cacheSongs } from "../../data/repo";
 import { supabase } from "../../data/supabase";
 import { Empty, TopBar } from "../../ui/bits";
+import { Hero } from "../../ui/Hero";
 import { useNav } from "../nav";
 import { SongList } from "../rows";
 
@@ -32,8 +33,13 @@ export function Browse({ genre }: { genre: string }) {
   const songs = [...(local ?? []), ...remote.filter((s) => !ids.has(s.id))].sort((a, b) => a.title.localeCompare(b.title));
   return (
     <>
-      <TopBar onBack={nav.back} />
-      <h1 className="page-title">{genre}</h1>
+      <TopBar over onBack={nav.back} />
+      <Hero seed={`genre-${genre}`} short>
+        <div className="glass glass--card herocard">
+          <h1 className="herocard__title">{genre}</h1>
+          <p className="herocard__meta">Songs in Gitara</p>
+        </div>
+      </Hero>
       <SongList songs={songs} empty={<Empty title={`No ${genre} songs yet`} text="Add one and it'll show up here for everyone (if you make it public)." />} />
     </>
   );

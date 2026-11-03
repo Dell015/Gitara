@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Empty, SubChips, TopBar } from "../../ui/bits";
 import { HeatMark } from "../../ui/HeatMark";
+import { Hero } from "../../ui/Hero";
 import { plural, useLibrarySongs } from "../hooks";
 import { useNav } from "../nav";
 import { SongList } from "../rows";
@@ -15,13 +16,15 @@ export function Collection({ kind }: { kind: "liked" | "learning" }) {
     .sort((a, b) => b.entry.createdAt.localeCompare(a.entry.createdAt));
   return (
     <>
-      <TopBar onBack={nav.back} />
-      <header className="page-head">
-        <h1 className="page-title">
-          {kind === "learning" && <HeatMark heat="learning" />} {kind === "liked" ? "Liked songs" : "Learning now"}
-        </h1>
-        <p className="muted num">{plural(rows.length, "song")}</p>
-      </header>
+      <TopBar over onBack={nav.back} />
+      <Hero seed={kind === "liked" ? "liked-songs" : "learning-now"} style={kind === "liked" ? "arc" : "flow"} warmth={kind === "liked" ? 1 : 0.86} short>
+        <div className="glass glass--card herocard">
+          <h1 className="herocard__title">
+            {kind === "learning" && <HeatMark heat="learning" />} {kind === "liked" ? "Liked songs" : "Learning now"}
+          </h1>
+          <p className="herocard__meta num">{plural(rows.length, "song")}</p>
+        </div>
+      </Hero>
       {kind === "liked" && (
         <div className="chips">
           <SubChips

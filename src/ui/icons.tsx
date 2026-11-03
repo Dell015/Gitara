@@ -176,3 +176,8 @@ export const IconLink = () => (
     <path d="M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" />
   </Svg>
 );
+export const IconArrow = () => (
+  <Svg>
+    <path d="M5 12h13.5M13 6.5l5.5 5.5-5.5 5.5" />
+  </Svg>
+);

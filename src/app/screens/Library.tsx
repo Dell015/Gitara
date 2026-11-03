@@ -7,6 +7,7 @@ import { db } from "../../data/local-db";
 import { Chips, Empty, ItemRow, Mark, SubChips } from "../../ui/bits";
 import { IconClose, IconGrid, IconList, IconPin, IconPlus, IconSearch, IconSort } from "../../ui/icons";
 import { plural, useLibrarySongs, usePlaylistCounts, usePlaylists } from "../hooks";
+import { warmthFor } from "../../ui/artwork";
 import { useNav } from "../nav";
 import { useOverlays } from "../overlays";
 import { ConnectedSongRow } from "../rows";
@@ -53,6 +54,8 @@ interface Item {
   pinned: boolean;
   node: React.ReactNode;
   tile: { sub: string; go: () => void; menu?: () => void };
+  seed: string;
+  warmth?: number;
 }
 
 export function Library() {
@@ -104,6 +107,8 @@ export function Library() {
           pinned: !!entry.pinnedAt,
           node: <ConnectedSongRow song={song} lead={entry.pinnedAt ? <span className="pin"><IconPin /></span> : undefined} />,
           tile: { sub: song.artist, go: () => nav.push({ name: "song", id: song.id }), menu: () => open({ kind: "songMenu", songId: song.id }) },
+          seed: song.id,
+          warmth: warmthFor(entry.status),
         });
       }
 
@@ -120,8 +125,9 @@ export function Library() {
           addedAt: p.createdAt,
           recentAt: rec.get(`playlist:${p.id}`) ?? Date.parse(p.updatedAt),
           pinned: !!p.pinnedAt,
-          node: <ItemRow title={p.name} sub={sub} lead={<Mark kind="playlist" />} trail={p.pinnedAt ? <span className="pin"><IconPin /></span> : undefined} onClick={go} />,
+          node: <ItemRow title={p.name} sub={sub} lead={<Mark kind="playlist" seed={p.id} />} trail={p.pinnedAt ? <span className="pin"><IconPin /></span> : undefined} onClick={go} />,
           tile: { sub, go, menu: () => open({ kind: "playlistMenu", id: p.id }) },
+          seed: p.id,
         });
       }
 
@@ -142,8 +148,9 @@ export function Library() {
           addedAt: a.added,
           recentAt: rec.get(`artist:${a.name}`) ?? Date.parse(a.added),
           pinned: false,
-          node: <ItemRow title={a.name} sub={sub} lead={<Mark kind="artist" />} onClick={go} />,
+          node: <ItemRow title={a.name} sub={sub} lead={<Mark kind="artist" seed={a.name} />} onClick={go} />,
           tile: { sub, go },
+          seed: a.name,
         });
       }
     }
@@ -283,7 +290,7 @@ export function Library() {
                   i.tile.menu();
                 }}
               >
-                <Mark kind={i.kind} />
+                <Mark kind={i.kind} seed={i.seed} warmth={i.warmth} res={[96, 96]} />
                 <span className="gtile__title">{i.title}</span>
                 <span className="gtile__sub">{i.tile.sub}</span>
                 {i.pinned && (

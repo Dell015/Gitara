@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { HeatMark } from "./HeatMark";
-import { IconBack, IconClose, IconHeart, IconPerson, IconPlaylists, IconSongs } from "./icons";
+import { Art } from "./Art";
+import { IconBack, IconClose } from "./icons";
 
 /** A row of filter chips. Chips are always tappable (pills only when tappable, §5.16). */
 export function Chips<T extends string>({
@@ -46,11 +46,11 @@ export function SubChips<T extends string>({ options, value, onChange }: { optio
 }
 
 /** Top bar for pushed screens: back on the left, actions on the right. The title shows once scrolled. */
-export function TopBar({ onBack, title, right }: { onBack?: () => void; title?: string; right?: ReactNode }) {
+export function TopBar({ onBack, title, right, over }: { onBack?: () => void; title?: string; right?: ReactNode; over?: boolean }) {
   return (
-    <div className="topbar">
+    <div className={over ? "topbar topbar--over" : "topbar"}>
       {onBack ? (
-        <button className="iconbtn iconbtn--plain" onClick={onBack} aria-label="Back">
+        <button className={over ? "glassbtn" : "iconbtn iconbtn--plain"} onClick={onBack} aria-label="Back">
           <IconBack />
         </button>
       ) : (
@@ -122,15 +122,10 @@ export function ItemRow({
   );
 }
 
-/** Small square mark for playlists, artists and collections. There's no cover art, so a drawn mark stands in. */
-export function Mark({ kind }: { kind: "playlist" | "artist" | "liked" | "learning" | "song" }) {
-  return (
-    <span className="mark" data-kind={kind} aria-hidden="true">
-      {kind === "playlist" && <IconPlaylists />}
-      {kind === "artist" && <IconPerson />}
-      {kind === "liked" && <IconHeart filled />}
-      {kind === "learning" && <HeatMark heat="learning" />}
-      {kind === "song" && <IconSongs />}
-    </span>
-  );
+/** Artwork for playlists, artists and collections: generated heat light (there's no cover art). */
+export function Mark({ kind, seed, warmth, res }: { kind: "playlist" | "artist" | "liked" | "learning" | "song"; seed?: string; warmth?: number; res?: [number, number] }) {
+  const s = seed ?? kind;
+  if (kind === "liked") return <Art seed="liked-songs" style="arc" warmth={1} className="mark" res={res} />;
+  if (kind === "learning") return <Art seed="learning-now" style="flow" warmth={0.86} className="mark" res={res} />;
+  return <Art seed={s} warmth={warmth ?? (kind === "artist" ? 0.7 : 0.8)} className="mark" res={res} round={kind === "artist"} />;
 }
