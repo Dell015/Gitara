@@ -240,27 +240,55 @@ export function FretboardBuilder({
           <IconPlay />
         </button>
       </div>
-      <div className="fretboard" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
+      <div className="fbd" style={{ gridTemplateColumns: `30px repeat(${n}, 1fr)` }} role="group" aria-label="Fretboard">
+        <span />
         {order.map((s) => (
-          <button key={`n${s}`} className="fb__nut" data-state={frets[s]! < 0 ? "muted" : frets[s] === 0 ? "open" : "fretted"} onClick={() => tap(s, 0)} aria-label={`String ${n - s}: ${frets[s]! < 0 ? "muted" : frets[s] === 0 ? "open" : `fret ${frets[s]}`}`}>
-            {frets[s]! < 0 ? <span className="fb__x" /> : frets[s] === 0 ? <span className="fb__o" /> : null}
+          <span key={`l${s}`} className="fbd__name num">
+            {noteName(sounding[s]! % 12, "sharp")}
+          </span>
+        ))}
+        <span aria-hidden="true" />
+        {order.map((s) => (
+          <button
+            key={`n${s}`}
+            className="fbd__top"
+            data-state={frets[s]! < 0 ? "muted" : frets[s] === 0 ? "open" : "fretted"}
+            onClick={() => tap(s, 0)}
+            aria-label={`String ${n - s}: ${frets[s]! < 0 ? "muted" : frets[s] === 0 ? "open" : `fret ${frets[s]}`}. Tap to switch between open and muted`}
+          >
+            {frets[s]! < 0 ? <span className="fb__x" /> : frets[s] === 0 ? <span className="fb__o" /> : <span className="fbd__hint" />}
           </button>
         ))}
-        {rowsFrets.map((f) =>
-          order.map((s) => (
-            <button key={`${f}-${s}`} className="fb__cell" data-on={frets[s] === f} onClick={() => tap(s, f)} aria-label={`String ${n - s}, fret ${f}`}>
-              {frets[s] === f && <span className="fb__dot">{fingers[s] || ""}</span>}
-            </button>
-          )),
-        )}
+        {rowsFrets.map((f, ri) => (
+          <div key={f} className="fbd__row" data-nut={base === 1 && ri === 0 ? "" : undefined} data-inlay={[3, 5, 7, 9, 12, 15].includes(f) ? "" : undefined} style={{ gridColumn: "1 / -1", gridTemplateColumns: `30px repeat(${n}, 1fr)` }}>
+            <span className="fbd__fret num">{f}</span>
+            {order.map((s) => (
+              <button
+                key={`${f}-${s}`}
+                className="fbd__cell"
+                data-on={frets[s] === f}
+                style={{ "--sw": `${(1 + ((n - 1 - s) * 0.28)).toFixed(2)}px` } as React.CSSProperties}
+                onClick={() => tap(s, f)}
+                aria-label={`String ${n - s}, fret ${f}${frets[s] === f ? ". Tap to change the finger" : ""}`}
+              >
+                {frets[s] === f && <span className="fbd__dot num">{fingers[s] || ""}</span>}
+              </button>
+            ))}
+          </div>
+        ))}
       </div>
+      <p className="fbd__tip">Tap a fret to place a finger. Tap the top row to switch a string between open (○) and muted (×). Tap a dot again to set its finger.</p>
       <div className="fb__pos">
-        <button className="btn btn--ghost" onClick={() => setBase((b) => Math.max(1, b - 1))} disabled={base <= 1}>
-          Lower
+        <button className="iconbtn iconbtn--plain" aria-label="Show lower frets" onClick={() => setBase((x) => Math.max(1, x - 1))} disabled={base <= 1}>
+          <svg viewBox="0 0 24 24" width="20" height="20" className="icon" aria-hidden="true">
+            <path d="M14.5 6l-6 6 6 6" />
+          </svg>
         </button>
         <span className="num">Frets {base}–{base + shown - 1}</span>
-        <button className="btn btn--ghost" onClick={() => setBase((b) => Math.min(17, b + 1))}>
-          Higher
+        <button className="iconbtn iconbtn--plain" aria-label="Show higher frets" onClick={() => setBase((x) => Math.min(17, x + 1))}>
+          <svg viewBox="0 0 24 24" width="20" height="20" className="icon" aria-hidden="true">
+            <path d="M9.5 6l6 6-6 6" />
+          </svg>
         </button>
       </div>
       <label className="field">

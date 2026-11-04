@@ -254,6 +254,15 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
       out.splice(bi + 1, 0, { chords: b.chords.map((c) => ({ ...c })) });
       return out;
     });
+  /** Fills a section with a copy of another one's chords and strumming (with Undo). */
+  const copyFrom = (targetId: string, sourceId: string) => {
+    const src = d.sections.find((x) => x.id === sourceId);
+    const tgt = d.sections.find((x) => x.id === targetId);
+    if (!src || !tgt) return;
+    const before = { text: tgt.text, strum: [...tgt.strum] };
+    setSection(targetId, { text: src.text, strum: [...src.strum] });
+    showToast(`Copied ${src.label || KIND_LABEL[src.kind]}`, { label: "Undo", run: () => setSection(targetId, before) });
+  };
   const removeSection = (sidv: string) => set({ sections: d.sections.filter((s) => s.id !== sidv), arrangement: d.arrangement.filter((a) => a.sectionId !== sidv) });
   const duplicateSection = (s: EditSection) => {
     const c = { ...s, id: sid(), strum: [...s.strum] };
@@ -633,6 +642,24 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
             ) : (
               <p className="muted">No chords in this section yet.</p>
             )}
+            {(() => {
+              const sources = d.sections
+                .filter((x) => x.id !== cur.id && (parsed.get(x.id)?.bars.length ?? 0) > 0)
+                .sort((a, b) => Number(b.kind === cur.kind) - Number(a.kind === cur.kind));
+              if (!sources.length) return null;
+              return (
+                <div className="copyfrom">
+                  <span className="field__label">{cp && cp.bars.length ? "Replace with a copy of" : "Copy chords from"}</span>
+                  <div className="chips chips--wrap">
+                    {sources.map((x) => (
+                      <button key={x.id} className="chip" onClick={() => copyFrom(cur.id, x.id)}>
+                        {nameOf(x)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <button className="btn btn--secondary" onClick={() => open({ kind: "chordPicker", tuning: d.tuning, onPick: (name) => appendChord(cur.id, name) })}>
               <IconPlus /> Add chords
             </button>
