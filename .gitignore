@@ -9,3 +9,7 @@ coverage
 .DS_Store
 Thumbs.db
 .taste-skill
+
+# Claude copies updates in through this file; safe to delete
+.gitara-update.tar
+phase3.tar

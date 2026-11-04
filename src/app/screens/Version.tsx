@@ -55,6 +55,15 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
   const [loopItem, setLoopItem] = useState<number | null>(null);
   const [trainer, setTrainer] = useState(false);
   const [liveSpeed, setLiveSpeed] = useState<number | null>(null);
+  const [trackId, setTrackId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(`gitara.track.${id}`);
+    } catch {
+      return null;
+    }
+  });
+  const [guitar, setGuitar] = useState(true);
+  const track = useLiveQuery(async () => (trackId ? db.tracks.get(trackId) : undefined), [trackId]);
   const userStopped = useRef(false);
   const releaseWake = useRef<() => void>(() => undefined);
 
@@ -124,6 +133,8 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
       speedStep: trainer && li ? 0.05 : undefined,
       countIn,
       clickTrack,
+      track: track ?? undefined,
+      guitar,
       onLoop: (s) => setLiveSpeed(trainer ? s : null),
       onPosition: (p) => {
         setPos(p);
@@ -223,6 +234,34 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
           onUp={() => setSpeed((s) => Math.min(1.5, Math.round((s + 0.05) * 100) / 100))}
         />
         <span className="tools__bpm num">{Math.round(bpm * (liveSpeed ?? speed))} bpm</span>
+        <button
+          className="chip"
+          aria-pressed={!!track}
+          onClick={() =>
+            v &&
+            open({
+              kind: "pickTrack",
+              songId: v.songId,
+              current: trackId ?? undefined,
+              onPick: (tid) => {
+                setTrackId(tid);
+                try {
+                  if (tid) localStorage.setItem(`gitara.track.${id}`, tid);
+                  else localStorage.removeItem(`gitara.track.${id}`);
+                } catch {
+                  /* ignore */
+                }
+              },
+            })
+          }
+        >
+          {track ? `Track: ${track.name}` : "Backing track"}
+        </button>
+        {track && (
+          <button className="chip" aria-pressed={guitar} onClick={() => setGuitar((g) => !g)}>
+            Guitar sound
+          </button>
+        )}
         <button className="chip" aria-pressed={countIn} onClick={() => setCountIn((c) => !c)}>
           Count-in
         </button>

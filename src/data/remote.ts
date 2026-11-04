@@ -1,8 +1,9 @@
 /** Reading public things from the cloud (search, duplicate checks, artist pages). */
+import type { Track } from "../core/drums";
 import type { Song, Version } from "../core/model";
 import { normalize } from "../core/text";
 import { db } from "./local-db";
-import { rowToSong, rowToVersion, safeSearchTerm } from "./mappers";
+import { rowToSong, rowToTrack, rowToVersion, safeSearchTerm } from "./mappers";
 import { cacheSongs } from "./repo";
 import { supabase } from "./supabase";
 
@@ -78,4 +79,15 @@ export async function findPublicVersionDuplicate(v: Pick<Version, "id" | "songId
     .neq("id", v.id)
     .limit(1);
   return data && data[0] ? rowToVersion(data[0]) : null;
+}
+
+/** Public backing tracks for a song. */
+export async function publicTracksForSong(songId: string): Promise<Track[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("tracks").select("*").eq("song_id", songId).eq("visibility", "public").limit(50);
+  if (error) throw error;
+  const ts = (data ?? []).map(rowToTrack);
+  const pending = new Set((await db.outbox.where("table").equals("tracks").toArray()).map((o) => o.rowId));
+  await db.tracks.bulkPut(ts.filter((t) => !pending.has(t.id)));
+  return ts;
 }

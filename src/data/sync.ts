@@ -8,7 +8,7 @@
 import { useSyncExternalStore } from "react";
 import { currentUserId, LOCAL_OWNER } from "./auth";
 import { db, type OutboxEntry, type SyncedTable } from "./local-db";
-import { entryToRow, itemToRow, playlistToRow, rowToEntry, rowToItem, rowToPlaylist, rowToSong, rowToVersion, songToRow, versionToRow } from "./mappers";
+import { entryToRow, itemToRow, playlistToRow, rowToEntry, rowToItem, rowToPlaylist, rowToSong, rowToTrack, rowToVersion, songToRow, trackToRow, versionToRow } from "./mappers";
 import { supabase } from "./supabase";
 
 export type SyncState = { phase: "off" | "idle" | "syncing" | "error"; pending: number; lastSyncedAt?: number; error?: string };
@@ -67,6 +67,7 @@ export async function syncNow(): Promise<void> {
 const TABLE: Record<SyncedTable, { name: string; key: string }> = {
   songs: { name: "songs", key: "id" },
   versions: { name: "versions", key: "id" },
+  tracks: { name: "tracks", key: "id" },
   library: { name: "library_entries", key: "song_id" },
   playlists: { name: "playlists", key: "id" },
   playlistItems: { name: "playlist_items", key: "id" },
@@ -127,6 +128,11 @@ async function push() {
   await up("versions", vers.map((v) => versionToRow(v!, uid)), vers.map((v) => v!.id));
   await db.versions.where("authorId").equals(LOCAL_OWNER).modify({ authorId: uid });
 
+  const trIds = of("tracks", "upsert");
+  const trs = (await db.tracks.bulkGet(trIds)).filter((t) => !!t && (t.ownerId === LOCAL_OWNER || t.ownerId === uid));
+  await up("tracks", trs.map((t) => trackToRow(t!, uid)), trs.map((t) => t!.id));
+  await db.tracks.where("ownerId").equals(LOCAL_OWNER).modify({ ownerId: uid });
+
   const libIds = of("library", "upsert");
   const libs = (await db.library.bulkGet(libIds)).filter((e) => !!e);
   await up("library", libs.map((e) => entryToRow(e!, uid)), libs.map((e) => e!.songId), "user_id,song_id");
@@ -142,6 +148,7 @@ async function push() {
 
   await del("library");
   await del("versions");
+  await del("tracks");
   await del("playlists");
   await del("songs");
 
@@ -170,13 +177,14 @@ export async function pull(): Promise<void> {
   const uid = currentUserId();
   if (!sb || !uid) return;
 
-  const [mySongs, lib, pls, vers] = await Promise.all([
+  const [mySongs, lib, pls, vers, trks] = await Promise.all([
     sb.from("songs").select("*").eq("created_by", uid),
     sb.from("library_entries").select("*").eq("user_id", uid),
     sb.from("playlists").select("*").eq("owner_id", uid),
     sb.from("versions").select("*").eq("author_id", uid),
+    sb.from("tracks").select("*").eq("owner_id", uid),
   ]);
-  if (mySongs.error || lib.error || pls.error || vers.error) throw mySongs.error ?? lib.error ?? pls.error ?? vers.error;
+  if (mySongs.error || lib.error || pls.error || vers.error || trks.error) throw mySongs.error ?? lib.error ?? pls.error ?? vers.error ?? trks.error;
 
   const plIds = (pls.data ?? []).map((p) => p.id as string);
   const items = plIds.length ? await sb.from("playlist_items").select("*").in("playlist_id", plIds) : { data: [], error: null };
@@ -191,7 +199,14 @@ export async function pull(): Promise<void> {
   const pending = await db.outbox.toArray();
   const isPending = (t: SyncedTable, id: string) => pending.some((p) => p.table === t && p.rowId === id);
 
-  await db.transaction("rw", [db.songs, db.versions, db.library, db.playlists, db.playlistItems], async () => {
+  await db.transaction("rw", [db.songs, db.versions, db.tracks, db.library, db.playlists, db.playlistItems], async () => {
+    // your tracks
+    const remoteTr = (trks.data ?? []).map(rowToTrack);
+    const remoteTrIds = new Set(remoteTr.map((t) => t.id));
+    await db.tracks.bulkPut(remoteTr.filter((t) => !isPending("tracks", t.id)));
+    const localTr = await db.tracks.where("ownerId").equals(uid).toArray();
+    await db.tracks.bulkDelete(localTr.filter((t) => !remoteTrIds.has(t.id) && !isPending("tracks", t.id)).map((t) => t.id));
+
     // your versions
     const remoteVers = (vers.data ?? []).map(rowToVersion);
     const remoteVerIds = new Set(remoteVers.map((v) => v.id));

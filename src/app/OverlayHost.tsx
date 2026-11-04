@@ -14,6 +14,7 @@ import { ChordSheet, FretboardBuilder } from "./ChordSheets";
 import { useNav } from "./nav";
 import { queue } from "./queue";
 import { VersionMenu } from "./VersionMenu";
+import { GroovesSheet } from "./screens/Track";
 import { useOverlays, type Overlay } from "./overlays";
 
 export function OverlayHost() {
@@ -44,6 +45,8 @@ const TITLES: Record<Overlay["kind"], string> = {
   chord: "Chord",
   fretboard: "Build a chord",
   versionMenu: "Version options",
+  grooves: "Grooves",
+  pickTrack: "Backing track",
 };
 
 function Content({ o }: { o: Overlay }) {
@@ -74,6 +77,10 @@ function Content({ o }: { o: Overlay }) {
       return <FretboardBuilder tuning={o.tuning} capo={o.capo} start={o.start} onDone={o.onDone} />;
     case "versionMenu":
       return <VersionMenu id={o.id} />;
+    case "grooves":
+      return <GroovesSheet onPick={o.onPick} />;
+    case "pickTrack":
+      return <PickTrack songId={o.songId} current={o.current} onPick={o.onPick} />;
   }
 }
 
@@ -452,14 +459,22 @@ function CreateSheet() {
           }}
         />
         <MenuItem label="New playlist" hint="A setlist, a jam night, songs to learn" onClick={() => open({ kind: "newPlaylist" })} />
-        <button className="menuitem" disabled>
-          <span>New chord version</span>
-          <span className="menuitem__hint">Next update</span>
-        </button>
-        <button className="menuitem" disabled>
-          <span>New backing track</span>
-          <span className="menuitem__hint">Later</span>
-        </button>
+        <MenuItem
+          label="New chord version"
+          hint="Pick a song from your Library"
+          onClick={() => {
+            close();
+            nav.goTo("library", { name: "library" });
+          }}
+        />
+        <MenuItem
+          label="New backing track"
+          hint="Drums and loops to play along with"
+          onClick={() => {
+            close();
+            nav.push({ name: "track" });
+          }}
+        />
       </div>
     </>
   );
@@ -538,3 +553,56 @@ function SortSheet({ current, options, onPick }: Extract<Overlay, { kind: "sort"
   );
 }
 
+
+function PickTrack({ songId, current, onPick }: { songId: string; current?: string; onPick: (id: string | null) => void }) {
+  const { close } = useOverlays();
+  const nav = useNav();
+  const tracks = useLiveQuery(() => db.tracks.where("songId").equals(songId).toArray(), [songId]);
+  return (
+    <>
+      <SheetHead title="Backing track" sub="Plays under the chords. Each section uses its own pattern." />
+      <div className="menu">
+        <button
+          className="menuitem"
+          aria-pressed={!current}
+          onClick={() => {
+            onPick(null);
+            close();
+          }}
+        >
+          <span>None (chords and click only)</span>
+          {!current && (
+            <span className="menuitem__hint">
+              <IconCheck />
+            </span>
+          )}
+        </button>
+        {(tracks ?? []).map((t) => (
+          <button
+            key={t.id}
+            className="menuitem"
+            onClick={() => {
+              onPick(t.id);
+              close();
+            }}
+          >
+            <span>{t.name}</span>
+            <span className="menuitem__hint">
+              {t.bpm} bpm{isMine(t.ownerId) ? "" : " · shared"} {current === t.id && <IconCheck />}
+            </span>
+          </button>
+        ))}
+        <button
+          className="menuitem menuitem--accent"
+          onClick={() => {
+            close();
+            nav.push({ name: "track", songId });
+          }}
+        >
+          <IconPlus />
+          <span>Make a backing track</span>
+        </button>
+      </div>
+    </>
+  );
+}

@@ -25,6 +25,7 @@ import { SongScreen } from "./screens/Song";
 import { EditVersion } from "./screens/EditVersion";
 import { VersionScreen } from "./screens/Version";
 import { Tuner } from "./screens/Tuner";
+import { TrackScreen } from "./screens/Track";
 import { Metronome } from "./screens/Metronome";
 
 export function App() {
@@ -104,6 +105,8 @@ function Screen({ route }: { route: Route }) {
       return <Browse genre={route.genre} />;
     case "version":
       return <VersionScreen id={route.id} play={route.play} fromQueue={route.fromQueue} />;
+    case "track":
+      return <TrackScreen id={route.id} songId={route.songId} />;
     case "tuner":
       return <Tuner />;
     case "metronome":

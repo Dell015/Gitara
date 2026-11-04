@@ -4,10 +4,10 @@ import { audio } from "../../audio/guitar";
 import { chordsUsed } from "../../core/chart";
 import { tuningName } from "../../core/tunings";
 import { isMine } from "../../data/auth";
-import { publicVersionsForSong } from "../../data/remote";
+import { publicTracksForSong, publicVersionsForSong } from "../../data/remote";
 import { db } from "../../data/local-db";
 import * as repo from "../../data/repo";
-import { Empty, TopBar } from "../../ui/bits";
+import { Empty, ItemRow, Mark, TopBar } from "../../ui/bits";
 import { warmthFor } from "../../ui/artwork";
 import { HeatMark } from "../../ui/HeatMark";
 import { Hero } from "../../ui/Hero";
@@ -41,6 +41,10 @@ export function SongScreen({ id }: { id: string }) {
     return db.songs.where("artist").equals(song.artist).filter((s) => s.id !== id).limit(5).toArray();
   }, [song?.artist, id]);
   const [showVideo, setShowVideo] = useState(false);
+  const tracks = useLiveQuery(() => db.tracks.where("songId").equals(id).toArray(), [id]);
+  useEffect(() => {
+    publicTracksForSong(id).catch(() => undefined);
+  }, [id]);
   const localVersions = useLiveQuery(() => db.versions.where("songId").equals(id).toArray(), [id]);
   useEffect(() => {
     publicVersionsForSong(id).catch(() => undefined);
@@ -203,6 +207,24 @@ export function SongScreen({ id }: { id: string }) {
               Add the chords
             </button>
           </Empty>
+        )}
+      </section>
+
+      <section className="block">
+        <div className="block__head">
+          <h2 className="h2">Backing tracks</h2>
+          <button className="link" onClick={() => nav.push({ name: "track", songId: id })}>
+            Make one
+          </button>
+        </div>
+        {tracks && tracks.length > 0 ? (
+          <div className="list">
+            {tracks.map((t) => (
+              <ItemRow key={t.id} title={t.name} sub={`${t.bpm} bpm · ${t.content.patterns.length} pattern${t.content.patterns.length === 1 ? "" : "s"}${isMine(t.ownerId) ? "" : " · shared"}`} lead={<Mark kind="playlist" seed={t.id} />} onClick={() => nav.push({ name: "track", id: t.id })} />
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Make a drum groove to play along with. Each section can have its own pattern.</p>
         )}
       </section>
 

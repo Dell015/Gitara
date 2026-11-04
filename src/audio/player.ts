@@ -7,6 +7,8 @@
  */
 import { beatsPerBar, DEFAULT_STRUM, NO_CHORD } from "../core/chart";
 import type { Section, StrumStep } from "../core/model";
+import { patternForSection, stepsPerBar, stepsPerBeat, type Pattern, type Track } from "../core/drums";
+import { schedulePattern } from "./drums";
 import { audio, click, strumStep } from "./guitar";
 
 export interface PlayPosition {
@@ -41,6 +43,10 @@ export interface PlayOptions {
   /** A click on every beat under the strums. */
   clickTrack?: boolean;
   onLoop?: (speed: number) => void;
+  /** A backing track to play under the chords (each section uses its pattern). */
+  track?: Track;
+  /** Chord strums on or off (off = just the backing track and click). */
+  guitar?: boolean;
 }
 
 export interface Playback {
@@ -51,11 +57,13 @@ export function playChart(o: PlayOptions): Playback {
   const { ctx } = audio();
   const bpb = beatsPerBar(o.timeSignature);
   type Step = { t: number; step: StrumStep; shape: number[] | null; len: number; pos: PlayPosition; beatStart: boolean; accent: boolean };
+  type DrumBar = { t: number; pattern: Pattern; from: number; to: number; done?: boolean };
 
   /** One pass through the chosen parts at a speed; times start at 0. */
   const build = (speed: number) => {
     const beatSec = 60 / Math.max(20, o.bpm * speed);
     const steps: Step[] = [];
+    const drumBars: DrumBar[] = [];
     let t = 0;
     const from = o.loop ? o.loop.from : (o.fromPart ?? 0);
     const to = o.loop ? o.loop.to : o.order.length - 1;
@@ -63,8 +71,14 @@ export function playChart(o: PlayOptions): Playback {
       if (part < from || part > to) return;
       const pattern = sec.strum?.steps?.length ? sec.strum.steps : DEFAULT_STRUM;
       const perBeat = pattern.length / bpb;
+      const pat = o.track ? patternForSection(o.track.content, sec.kind) : undefined;
       sec.bars.forEach((bar, bi) => {
         const total = bar.chords.reduce((s, c) => s + c.beats, 0) || bpb;
+        if (pat && o.track) {
+          const spb = stepsPerBar(o.track.timeSignature);
+          const within = bi % Math.max(1, pat.bars);
+          drumBars.push({ t, pattern: pat, from: within * spb, to: within * spb + spb });
+        }
         const n = Math.max(1, Math.round(perBeat * total));
         const stepSec = (total * beatSec) / n;
         for (let k = 0; k < n; k++) {
@@ -92,7 +106,7 @@ export function playChart(o: PlayOptions): Playback {
         t += total * beatSec;
       });
     });
-    return { steps, length: t, beatSec };
+    return { steps, drumBars, length: t, beatSec };
   };
 
   let speed = o.speed ?? 1;
@@ -110,6 +124,15 @@ export function playChart(o: PlayOptions): Playback {
   const tick = () => {
     if (stopped) return;
     const horizon = ctx.currentTime + 0.12;
+    // drums for any bar that starts soon
+    if (o.track)
+      for (const d of pass.drumBars) {
+        if (d.done) continue;
+        const when = passStart + d.t;
+        if (when >= horizon) break;
+        d.done = true;
+        schedulePattern(d.pattern, when, o.bpm * speed, stepsPerBeat(o.track.timeSignature), o.track.swing, d.from, d.to);
+      }
     for (;;) {
       if (next >= pass.steps.length) {
         if (!o.loop) {
@@ -127,7 +150,7 @@ export function playChart(o: PlayOptions): Playback {
       const s = pass.steps[next]!;
       const when = passStart + s.t;
       if (when >= horizon) break;
-      if (s.shape) strumStep(s.step, s.shape, o.tuning, o.capo, when, s.len, s.accent);
+      if (s.shape && o.guitar !== false) strumStep(s.step, s.shape, o.tuning, o.capo, when, s.len, s.accent);
       if (s.beatStart) {
         if (o.clickTrack) click(when, s.accent && s.pos.beat === 0);
         const pos = s.pos;

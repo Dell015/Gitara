@@ -1,4 +1,5 @@
 /** Converts between on-device rows (camelCase) and database rows (snake_case). Pure; tested. */
+import type { Track } from "../core/drums";
 import type { LibraryEntry, Playlist, PlaylistItem, Song, Version } from "../core/model";
 
 type Row = Record<string, unknown>;
@@ -163,6 +164,36 @@ export function rowToVersion(r: Row): Version {
     difficultyScore: opt(r.difficulty_score as number | null),
     difficultyLevel: opt(r.difficulty_level as Version["difficultyLevel"] | null),
     visibility: r.visibility as Version["visibility"],
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+  };
+}
+
+export function trackToRow(t: Track, uid: string): Row {
+  return {
+    id: t.id,
+    owner_id: uid,
+    song_id: t.songId ?? null,
+    name: t.name,
+    bpm: t.bpm,
+    time_signature: t.timeSignature,
+    swing: t.swing,
+    content: t.content,
+    visibility: t.visibility,
+  };
+}
+
+export function rowToTrack(r: Row): Track {
+  return {
+    id: r.id as string,
+    ownerId: (r.owner_id as string | null) ?? null,
+    songId: opt(r.song_id as string | null),
+    name: r.name as string,
+    bpm: r.bpm as number,
+    timeSignature: (r.time_signature as string) ?? "4/4",
+    swing: (r.swing as number) ?? 0,
+    content: r.content as Track["content"],
+    visibility: r.visibility as Track["visibility"],
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
   };

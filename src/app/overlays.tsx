@@ -2,6 +2,7 @@
  * One place for things that float over the screen: the song "…" menu, the playlist picker,
  * the Create sheet, the account sheet, and toasts with Undo.
  */
+import type { Preset } from "../core/drums";
 import type { Voicing } from "../core/shapes";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
@@ -18,7 +19,9 @@ export type Overlay =
   | { kind: "sort"; current: string; options: { id: string; label: string }[]; onPick: (id: string) => void }
   | { kind: "chord"; name: string; tuning: readonly number[]; capo: number; current?: number[]; onPick?: (v: Voicing) => void }
   | { kind: "fretboard"; tuning: readonly number[]; capo: number; start?: number[]; onDone: (name: string, v: Voicing) => void }
-  | { kind: "versionMenu"; id: string };
+  | { kind: "versionMenu"; id: string }
+  | { kind: "grooves"; onPick: (p: Preset) => void }
+  | { kind: "pickTrack"; songId: string; current?: string; onPick: (id: string | null) => void };
 
 export interface Toast {
   id: number;

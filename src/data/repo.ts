@@ -3,6 +3,7 @@
  * outbox entry in the same transaction, so nothing is lost if the app closes before syncing.
  */
 import { computeDifficulty, contentHash } from "../core/chart";
+import type { Track } from "../core/drums";
 import type { LearnStatus, LibraryEntry, PlayablePart, Playlist, PlaylistItem, Song, Version, Visibility } from "../core/model";
 import { normalize } from "../core/text";
 import { ownerForNewRow } from "./auth";
@@ -341,6 +342,35 @@ export async function setPreferredVersion(songId: string, versionId: string | un
     const e = (await db.library.get(songId)) ?? newEntry(songId, null);
     await db.library.put({ ...e, preferredVersionId: versionId, updatedAt: now() });
     await queue("library", "upsert", songId);
+  });
+  done(undefined);
+}
+
+// ---------------------------------------------------------------- tracks
+
+export type TrackDraft = Omit<Track, "id" | "ownerId" | "createdAt" | "updatedAt"> & { id?: string };
+
+export async function saveTrack(d: TrackDraft): Promise<Track> {
+  const t = now();
+  const existing = d.id ? await db.tracks.get(d.id) : undefined;
+  const track: Track = {
+    ...d,
+    id: existing?.id ?? d.id ?? uuid(),
+    ownerId: existing?.ownerId ?? ownerForNewRow(),
+    createdAt: existing?.createdAt ?? t,
+    updatedAt: t,
+  };
+  await db.transaction("rw", db.tracks, db.outbox, async () => {
+    await db.tracks.put(track);
+    await queue("tracks", "upsert", track.id);
+  });
+  return done(track);
+}
+
+export async function deleteTrack(id: string): Promise<void> {
+  await db.transaction("rw", db.tracks, db.outbox, async () => {
+    await db.tracks.delete(id);
+    await queue("tracks", "delete", id);
   });
   done(undefined);
 }

@@ -2868,3 +2868,182 @@ svg.icon:not([stroke]) {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* ============================================================ track maker (Phase 4)
+ * Step states read in monochrome too: a hit is a filled block, an accent is taller with a lit edge,
+ * a soft hit is a small block. Beats are grouped by alternating tone steps, bars by a gap.
+ */
+.input--title {
+  min-height: 52px;
+  font-size: max(16px, 1.5rem);
+  font-weight: 700;
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+}
+.input--title:focus {
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--amber);
+}
+.trackbar,
+.ptabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+.ptabs .chip[aria-selected="true"] {
+  background: var(--amber);
+  color: var(--ink-0);
+  font-weight: 700;
+}
+.ptabs .chip .icon {
+  width: 16px;
+  height: 16px;
+}
+.seq {
+  display: grid;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 0 calc(var(--space-4) * -1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--ink-1);
+  border-radius: 0;
+  --cell: 30px;
+}
+.seq__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: max-content;
+}
+.seq__lane {
+  position: sticky;
+  left: calc(var(--space-4) * -1);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 112px;
+  flex: none;
+  padding-right: var(--space-2);
+  background: var(--ink-1);
+}
+.seq__name {
+  flex: 1;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .seq__name:hover {
+    background: var(--ink-2);
+  }
+}
+.seq__mute {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--ink-3);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.seq__mute[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--ink-0);
+}
+.seq__steps {
+  display: flex;
+  gap: 3px;
+}
+.seq__step {
+  position: relative;
+  width: var(--cell);
+  height: 40px;
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ink-2);
+  cursor: pointer;
+  transition: transform 80ms var(--ease-out);
+}
+.seq__step[data-alt="true"] {
+  background: var(--ink-3);
+}
+.seq__step[data-bar="true"] {
+  margin-left: 10px;
+}
+.seq__step::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  height: 0;
+  border-radius: 3px;
+  background: var(--amber);
+}
+.seq__step[data-v="on"]::after {
+  top: 4px;
+  height: auto;
+}
+.seq__step[data-v="accent"]::after {
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  height: auto;
+  background: var(--ember);
+  box-shadow: inset 0 3px 0 rgb(255 255 255 / 0.35);
+}
+.seq__step[data-v="soft"]::after {
+  height: 12px;
+  opacity: 0.7;
+}
+.seq__step[data-head="true"] {
+  box-shadow: inset 0 0 0 2px var(--text);
+}
+.seq__step:active:not(:disabled) {
+  transform: scale(0.92);
+}
+.seq__step:disabled {
+  cursor: default;
+}
+.secmap {
+  display: grid;
+  gap: var(--space-2);
+}
+.secmap__row {
+  display: grid;
+  grid-template-columns: 1fr minmax(140px, 0.8fr);
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: 600;
+}
+@media (min-width: 900px) {
+  .seq {
+    margin: 0;
+    border-radius: var(--radius-m);
+    --cell: 34px;
+  }
+  .seq__lane {
+    left: 0;
+  }
+}
+@media (min-width: 900px) {
+  .topbar:not(.topbar--over) {
+    grid-template-columns: 0 1fr auto;
+  }
+}
