@@ -27,6 +27,7 @@ import { Admin } from "./screens/Admin";
 import { Legal } from "./screens/Legal";
 import { TrackScreen } from "./screens/Track";
 import { Metronome } from "./screens/Metronome";
+import { JamRoom, JamStart } from "./screens/Jam";
 
 export function App() {
   useEffect(() => {
@@ -51,6 +52,14 @@ function Frame() {
   const nav = useNav();
   const { open } = useOverlays();
   const key = `${nav.tab}:${nav.depth}:${JSON.stringify(nav.route)}`;
+  // A shared invite (?jam=CODE) opens the join screen with the code filled in.
+  useEffect(() => {
+    const code = new URLSearchParams(location.search).get("jam");
+    if (!code) return;
+    history.replaceState(null, "", location.pathname);
+    nav.goTo("home", { name: "jam", code: code.toUpperCase() });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div className="app">
       <nav className="tabs glass" aria-label="Main">
@@ -116,6 +125,10 @@ function Screen({ route }: { route: Route }) {
       return <Tuner />;
     case "metronome":
       return <Metronome />;
+    case "jam":
+      return <JamStart code={route.code} />;
+    case "jamRoom":
+      return <JamRoom id={route.id} />;
     case "editVersion":
       return <EditVersion songId={route.songId} id={route.id} />;
     case "addSong":

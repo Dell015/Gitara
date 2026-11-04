@@ -486,6 +486,14 @@ function CreateSheet() {
           }}
         />
         <MenuItem
+          label="Start or join a jam"
+          hint="Play together; Gitara builds the setlist"
+          onClick={() => {
+            close();
+            nav.push({ name: "jam" });
+          }}
+        />
+        <MenuItem
           label="New backing track"
           hint="Drums and loops to play along with"
           onClick={() => {

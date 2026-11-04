@@ -9,7 +9,7 @@ import { Art } from "../../ui/Art";
 import { warmthFor } from "../../ui/artwork";
 import { Empty, Mark } from "../../ui/bits";
 import { HeatMark } from "../../ui/HeatMark";
-import { IconArrow, IconClose, IconJam, IconPlay, IconPlaylists, IconPractice, IconSongs, IconTuner } from "../../ui/icons";
+import { IconArrow, IconClose, IconGroup, IconJam, IconPlay, IconPlaylists, IconPractice, IconSongs, IconTuner } from "../../ui/icons";
 import { LiveArt } from "../../ui/LiveArt";
 import { greeting, plural, useCanPlay, useLibrarySongs, usePlaylists } from "../hooks";
 import { useNav } from "../nav";
@@ -236,6 +236,11 @@ export function Home() {
                 <IconSongs />
                 <span className="tooltile__title">Chord finder</span>
                 <span className="tooltile__sub">Place fingers, get the name</span>
+              </button>
+              <button className="tooltile tooltile--wide" onClick={() => nav.push({ name: "jam" })}>
+                <IconGroup />
+                <span className="tooltile__title">Jam with friends</span>
+                <span className="tooltile__sub">Everyone's songs become one setlist, with each person's part and capo</span>
               </button>
             </div>
           </section>

@@ -3150,7 +3150,7 @@ svg.icon:not([stroke]) {
 /* right panel tools */
 .rtools {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-1);
 }
 .rtool {
@@ -3499,4 +3499,207 @@ svg.icon:not([stroke]) {
   padding-left: 1.2em;
   display: grid;
   gap: var(--space-1);
+}
+
+
+/* ------------------------------------------------------------------ Jam mode */
+.tooltile--wide {
+  grid-column: 1 / -1;
+}
+.jamintro {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.joinrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+}
+.jamcode-input {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+.jamroom {
+  display: grid;
+  gap: var(--space-5);
+}
+@media (min-width: 900px) {
+  .jamroom {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+    gap: var(--space-6);
+  }
+  .jamroom__side {
+    position: sticky;
+    top: var(--space-5);
+  }
+}
+.invite {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.5rem;
+  gap: var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+.invite__code {
+  display: grid;
+  gap: var(--space-1);
+}
+.invite__label {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+.invite__digits {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  color: var(--text);
+}
+.qr {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-s);
+}
+
+.setlist {
+  display: grid;
+  gap: 2px;
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+.setrow {
+  border-radius: var(--radius-m);
+  background: var(--ink-1);
+  transition: background-color var(--dur-hover) var(--ease-out);
+}
+.setrow[data-status="done"] .setrow__title,
+.setrow[data-status="done"] .setrow__sub {
+  opacity: 0.55;
+}
+.setrow[data-status="now"] {
+  background: var(--ink-3);
+}
+.setrow__main {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.setrow__main:active {
+  transform: scale(0.99);
+}
+.setrow__n {
+  display: grid;
+  place-items: center;
+  height: 1.5rem;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.setrow__playing {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: var(--amber);
+}
+.setrow__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.setrow__title {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.setrow__tag {
+  margin-left: var(--space-2);
+  color: var(--amber);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.setrow__tag--quiet {
+  color: var(--text-2);
+  font-weight: 600;
+}
+.setrow__sub {
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+.setrow__mine {
+  margin-top: var(--space-1);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.setrow__listen {
+  margin-top: var(--space-1);
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+.setrow__key {
+  min-width: 2.25rem;
+  padding-top: 2px;
+  color: var(--amber);
+  font-weight: 700;
+  text-align: right;
+}
+.setrow__more {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4) calc(var(--space-4) + 2rem + var(--space-3));
+}
+.parts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.parts li {
+  display: grid;
+  gap: 1px;
+}
+.parts__name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.parts__what {
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+.memberrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--ink-1);
+}
+.memberrow .irow__main {
+  flex: 1;
+  min-width: 0;
+}
+.reqform {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+@media (min-width: 900px) {
+  .setrow__more {
+    padding-left: calc(var(--space-4) + 2rem + var(--space-3));
+  }
 }

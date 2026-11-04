@@ -158,6 +158,13 @@ export const IconPerson = () => (
     <path d="M5 19.5c1.2-3.3 3.8-5 7-5s5.8 1.7 7 5" />
   </Svg>
 );
+export const IconGroup = () => (
+  <Svg>
+    <circle cx="9" cy="9" r="3" />
+    <path d="M3.5 19c.9-2.9 3-4.3 5.5-4.3s4.6 1.4 5.5 4.3" />
+    <path d="M15.5 6.4a3 3 0 0 1 0 5.2M17.5 14.9c1.6.6 2.7 1.9 3.2 4.1" />
+  </Svg>
+);
 export const IconLock = () => (
   <Svg>
     <rect x="5.5" y="10.5" width="13" height="9" rx="1.8" />

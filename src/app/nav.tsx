@@ -23,6 +23,8 @@ export type Route =
   | { name: "legal"; page: "terms" | "privacy" | "copyright" | "credits" }
   | { name: "track"; id?: string; songId?: string }
   | { name: "metronome" }
+  | { name: "jam"; code?: string }
+  | { name: "jamRoom"; id: string }
   | { name: "editVersion"; songId: string; id?: string }
   | { name: "browse"; genre: string }
   | { name: "addSong"; title?: string; artist?: string; editId?: string };
