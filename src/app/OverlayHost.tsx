@@ -12,6 +12,7 @@ import { IconCheck, IconPlus } from "../ui/icons";
 import { Sheet } from "../ui/Sheet";
 import { ChordSheet, FretboardBuilder } from "./ChordSheets";
 import { useNav } from "./nav";
+import { queue } from "./queue";
 import { VersionMenu } from "./VersionMenu";
 import { useOverlays, type Overlay } from "./overlays";
 
@@ -168,6 +169,15 @@ function SongMenu({ songId, playlistItemId }: { songId: string; playlistItemId?:
       <div className="menu">
         <MenuItem label={liked ? "Remove from Library" : "Add to Library"} onClick={() => void toggleLike()} />
         <MenuItem label="Add to playlist" onClick={() => open({ kind: "pickPlaylist", songId })} />
+        <MenuItem
+          label="Add to practice queue"
+          hint="Up next in Practice"
+          onClick={() => {
+            queue.add(songId, entry?.preferredVersionId);
+            close();
+            showToast("Added to your practice queue");
+          }}
+        />
         {liked && (
           <MenuItem
             label={entry!.pinnedAt ? "Unpin from Library" : "Pin to Library"}

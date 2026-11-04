@@ -3,7 +3,7 @@ import type { LearnStatus, Song } from "../core/model";
 import { Art } from "./Art";
 import { warmthFor } from "./artwork";
 import { HeatMark } from "./HeatMark";
-import { IconHeart, IconMore } from "./icons";
+import { IconHeart, IconMore, IconPlaylists } from "./icons";
 
 /**
  * The one song row used everywhere (docs/screens.md, "One song row").
@@ -16,6 +16,7 @@ export function SongRow({
   onOpen,
   onLike,
   onMenu,
+  onQueue,
   lead,
   trail,
 }: {
@@ -25,6 +26,8 @@ export function SongRow({
   onOpen: () => void;
   onLike: () => void;
   onMenu: () => void;
+  /** Swipe right (Spotify's swipe-to-queue). */
+  onQueue?: () => void;
   lead?: ReactNode;
   trail?: ReactNode;
 }) {
@@ -53,11 +56,13 @@ export function SongRow({
       window.clearTimeout(s.t);
     }
     if (s.lock === "x" && el.current) {
-      s.dx = Math.min(0, dx); // left only
-      const pull = s.dx < -72 ? -72 + (s.dx + 72) * 0.3 : s.dx; // resist past the threshold
+      s.dx = onQueue ? dx : Math.min(0, dx); // left = like, right = queue
+      const lim = 72;
+      const pull = Math.abs(s.dx) > lim ? Math.sign(s.dx) * (lim + (Math.abs(s.dx) - lim) * 0.3) : s.dx; // resist past the threshold
       el.current.style.transition = "none";
       el.current.style.transform = `translateX(${pull}px)`;
-      el.current.dataset.armed = String(s.dx < -72);
+      el.current.dataset.armed = String(Math.abs(s.dx) > lim);
+      if (el.current.parentElement) el.current.parentElement.dataset.dir = s.dx > 0 ? "right" : "left";
     }
   };
   const end = () => {
@@ -71,11 +76,15 @@ export function SongRow({
       delete el.current.dataset.armed;
     }
     if (s.lock === "x" && s.dx < -72) onLike();
+    if (s.lock === "x" && s.dx > 72) onQueue?.();
   };
 
   return (
     <div className="srow-wrap">
       <span className="srow-under" aria-hidden="true">
+        <span className="srow-under__queue">
+          <IconPlaylists />
+        </span>
         <IconHeart filled={!liked} />
       </span>
       <div

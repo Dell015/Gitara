@@ -2,11 +2,12 @@
  * Plays a chord chart: strums each section's pattern at the version's tempo and reports where it is,
  * so the chart can highlight the bar and the light can breathe on the beat.
  * Uses a look-ahead scheduler (timing from the audio clock, not timers), so it stays in time.
- * Phase 3 adds count-in, looping a section, the speed trainer and backing tracks on top of this.
+ * Count-in, looping a section, the speed trainer and a click track are options here; backing tracks
+ * (Phase 4) will be scheduled alongside.
  */
 import { beatsPerBar, DEFAULT_STRUM, NO_CHORD } from "../core/chart";
 import type { Section, StrumStep } from "../core/model";
-import { audio, strumStep } from "./guitar";
+import { audio, click, strumStep } from "./guitar";
 
 export interface PlayPosition {
   /** Index into the play order (sections with repeats expanded). */
@@ -29,6 +30,17 @@ export interface PlayOptions {
   onBeat?: (accent: boolean) => void;
   /** Start from this part (section in play order). */
   fromPart?: number;
+  /** Play only these parts (inclusive) and repeat them until stopped. */
+  loop?: { from: number; to: number };
+  /** Tempo as a share of the version's tempo (0.5 = half speed). */
+  speed?: number;
+  /** Speed trainer: add this much speed each time the loop comes round, up to 1. */
+  speedStep?: number;
+  /** One bar of clicks before the first strum. */
+  countIn?: boolean;
+  /** A click on every beat under the strums. */
+  clickTrack?: boolean;
+  onLoop?: (speed: number) => void;
 }
 
 export interface Playback {
@@ -38,73 +50,93 @@ export interface Playback {
 export function playChart(o: PlayOptions): Playback {
   const { ctx } = audio();
   const bpb = beatsPerBar(o.timeSignature);
-  const beatSec = 60 / Math.max(30, o.bpm);
-
-  // Flatten to a list of steps with absolute times.
   type Step = { t: number; step: StrumStep; shape: number[] | null; len: number; pos: PlayPosition; beatStart: boolean; accent: boolean };
-  const steps: Step[] = [];
-  let t = 0;
-  o.order.forEach((sec, part) => {
-    if (part < (o.fromPart ?? 0)) return;
-    const pattern = sec.strum?.steps?.length ? sec.strum.steps : DEFAULT_STRUM;
-    const perBeat = pattern.length / bpb;
-    sec.bars.forEach((bar, bi) => {
-      const total = bar.chords.reduce((s, c) => s + c.beats, 0) || bpb;
-      const stepSec = (total * beatSec) / Math.max(1, Math.round(perBeat * total));
-      const n = Math.max(1, Math.round(perBeat * total));
-      for (let k = 0; k < n; k++) {
-        const beatPos = k / perBeat;
-        let acc = 0;
-        let chord = bar.chords[0];
-        for (const c of bar.chords) {
-          if (beatPos >= acc && beatPos < acc + c.beats) {
-            chord = c;
-            break;
-          }
-          acc += c.beats;
-        }
-        const name = chord ? o.nameFor(chord.name) : NO_CHORD;
-        const shape = name === NO_CHORD ? null : o.shapeFor(name);
-        const step = pattern[k % pattern.length]!;
-        steps.push({
-          t: t + k * stepSec,
-          step,
-          shape,
-          len: stepSec * 2.2,
-          pos: { part, bar: bi, beat: Math.floor(beatPos) },
-          beatStart: Math.abs(beatPos - Math.round(beatPos)) < 1e-6,
-          accent: k === 0,
-        });
-      }
-      t += total * beatSec;
-    });
-  });
 
-  const start = ctx.currentTime + 0.12;
+  /** One pass through the chosen parts at a speed; times start at 0. */
+  const build = (speed: number) => {
+    const beatSec = 60 / Math.max(20, o.bpm * speed);
+    const steps: Step[] = [];
+    let t = 0;
+    const from = o.loop ? o.loop.from : (o.fromPart ?? 0);
+    const to = o.loop ? o.loop.to : o.order.length - 1;
+    o.order.forEach((sec, part) => {
+      if (part < from || part > to) return;
+      const pattern = sec.strum?.steps?.length ? sec.strum.steps : DEFAULT_STRUM;
+      const perBeat = pattern.length / bpb;
+      sec.bars.forEach((bar, bi) => {
+        const total = bar.chords.reduce((s, c) => s + c.beats, 0) || bpb;
+        const n = Math.max(1, Math.round(perBeat * total));
+        const stepSec = (total * beatSec) / n;
+        for (let k = 0; k < n; k++) {
+          const beatPos = k / perBeat;
+          let acc = 0;
+          let chord = bar.chords[0];
+          for (const c of bar.chords) {
+            if (beatPos >= acc && beatPos < acc + c.beats) {
+              chord = c;
+              break;
+            }
+            acc += c.beats;
+          }
+          const name = chord ? o.nameFor(chord.name) : NO_CHORD;
+          steps.push({
+            t: t + k * stepSec,
+            step: pattern[k % pattern.length]!,
+            shape: name === NO_CHORD ? null : o.shapeFor(name),
+            len: stepSec * 2.2,
+            pos: { part, bar: bi, beat: Math.floor(beatPos) },
+            beatStart: Math.abs(beatPos - Math.round(beatPos)) < 1e-6,
+            accent: k === 0,
+          });
+        }
+        t += total * beatSec;
+      });
+    });
+    return { steps, length: t, beatSec };
+  };
+
+  let speed = o.speed ?? 1;
+  let pass = build(speed);
+  let passStart = ctx.currentTime + 0.12;
+  if (o.countIn) {
+    for (let b = 0; b < bpb; b++) click(passStart + b * pass.beatSec, b === 0);
+    passStart += bpb * pass.beatSec;
+  }
   let next = 0;
   let stopped = false;
-  const shown: number[] = [];
+  const timers: number[] = [];
+  const later = (when: number, fn: () => void) => timers.push(window.setTimeout(() => !stopped && fn(), Math.max(0, (when - ctx.currentTime) * 1000)));
 
   const tick = () => {
     if (stopped) return;
     const horizon = ctx.currentTime + 0.12;
-    while (next < steps.length && start + steps[next]!.t < horizon) {
-      const s = steps[next]!;
-      const when = start + s.t;
+    for (;;) {
+      if (next >= pass.steps.length) {
+        if (!o.loop) {
+          later(passStart + pass.length, () => o.onPosition(null));
+          return;
+        }
+        // next time round, a little faster if the speed trainer is on
+        passStart += pass.length;
+        if (o.speedStep) speed = Math.min(1, speed + o.speedStep);
+        pass = build(speed);
+        next = 0;
+        const sp = speed;
+        later(passStart, () => o.onLoop?.(sp));
+      }
+      const s = pass.steps[next]!;
+      const when = passStart + s.t;
+      if (when >= horizon) break;
       if (s.shape) strumStep(s.step, s.shape, o.tuning, o.capo, when, s.len, s.accent);
       if (s.beatStart) {
-        const delay = Math.max(0, (when - ctx.currentTime) * 1000);
+        if (o.clickTrack) click(when, s.accent && s.pos.beat === 0);
         const pos = s.pos;
         const accent = s.accent;
-        shown.push(window.setTimeout(() => !stopped && (o.onPosition(pos), o.onBeat?.(accent)), delay));
+        later(when, () => (o.onPosition(pos), o.onBeat?.(accent)));
       }
       next++;
     }
-    if (next >= steps.length) {
-      const endDelay = Math.max(0, (start + t - ctx.currentTime) * 1000);
-      shown.push(window.setTimeout(() => !stopped && o.onPosition(null), endDelay));
-      return;
-    }
+    if (timers.length > 256) timers.splice(0, 128);
     timer = window.setTimeout(tick, 25);
   };
   let timer = window.setTimeout(tick, 0);
@@ -113,7 +145,7 @@ export function playChart(o: PlayOptions): Playback {
     stop() {
       stopped = true;
       window.clearTimeout(timer);
-      shown.forEach((id) => window.clearTimeout(id));
+      timers.forEach((id) => window.clearTimeout(id));
       o.onPosition(null);
     },
   };

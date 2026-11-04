@@ -16,7 +16,9 @@ export type Route =
   | { name: "artist"; artist: string }
   | { name: "playlist"; id: string }
   | { name: "collection"; kind: "liked" | "learning" | "canplay" }
-  | { name: "version"; id: string; play?: boolean }
+  | { name: "version"; id: string; play?: boolean; fromQueue?: boolean }
+  | { name: "tuner" }
+  | { name: "metronome" }
   | { name: "editVersion"; songId: string; id?: string }
   | { name: "browse"; genre: string }
   | { name: "addSong"; title?: string; artist?: string; editId?: string };

@@ -24,6 +24,8 @@ import { Search } from "./screens/Search";
 import { SongScreen } from "./screens/Song";
 import { EditVersion } from "./screens/EditVersion";
 import { VersionScreen } from "./screens/Version";
+import { Tuner } from "./screens/Tuner";
+import { Metronome } from "./screens/Metronome";
 
 export function App() {
   useEffect(() => {
@@ -101,7 +103,11 @@ function Screen({ route }: { route: Route }) {
     case "browse":
       return <Browse genre={route.genre} />;
     case "version":
-      return <VersionScreen id={route.id} play={route.play} />;
+      return <VersionScreen id={route.id} play={route.play} fromQueue={route.fromQueue} />;
+    case "tuner":
+      return <Tuner />;
+    case "metronome":
+      return <Metronome />;
     case "editVersion":
       return <EditVersion songId={route.songId} id={route.id} />;
     case "addSong":

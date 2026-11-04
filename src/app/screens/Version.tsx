@@ -16,7 +16,9 @@ import { warmthFor } from "../../ui/artwork";
 import { Hero } from "../../ui/Hero";
 import { IconMore, IconPause, IconPlay } from "../../ui/icons";
 import { pulseLights } from "../../ui/lightShader";
+import { keepAwake } from "../../audio/metronome";
 import { useNav } from "../nav";
+import { queue } from "../queue";
 import { useOverlays } from "../overlays";
 import { usePrefs, setPrefs } from "../prefs";
 
@@ -35,7 +37,7 @@ export const KIND_LABEL: Record<Section["kind"], string> = {
 const LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" } as const;
 
 /** One version of a song, ready to read on a music stand and play along with (D3). */
-export function VersionScreen({ id, play }: { id: string; play?: boolean }) {
+export function VersionScreen({ id, play, fromQueue }: { id: string; play?: boolean; fromQueue?: boolean }) {
   const nav = useNav();
   const { open } = useOverlays();
   const prefs = usePrefs();
@@ -47,8 +49,16 @@ export function VersionScreen({ id, play }: { id: string; play?: boolean }) {
   const [viewCapo, setViewCapo] = useState<number | null>(null);
   const [pos, setPos] = useState<PlayPosition | null>(null);
   const playback = useRef<Playback | null>(null);
+  const [countIn, setCountIn] = useState(true);
+  const [clickTrack, setClickTrack] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [loopItem, setLoopItem] = useState<number | null>(null);
+  const [trainer, setTrainer] = useState(false);
+  const [liveSpeed, setLiveSpeed] = useState<number | null>(null);
+  const userStopped = useRef(false);
+  const releaseWake = useRef<() => void>(() => undefined);
 
-  useEffect(() => () => playback.current?.stop(), []);
+  useEffect(() => () => (playback.current?.stop(), releaseWake.current()), []);
   useEffect(() => {
     if (v) void repo.touchRecent("song", v.songId);
   }, [v?.songId]);
@@ -92,8 +102,14 @@ export function VersionScreen({ id, play }: { id: string; play?: boolean }) {
 
   const start = (fromPart = 0) => {
     if (!v) return;
+    userStopped.current = true;
     playback.current?.stop();
+    userStopped.current = false;
     audio();
+    void keepAwake().then((rel) => (releaseWake.current(), (releaseWake.current = rel)));
+    const li = loopItem !== null ? order[loopItem] : undefined;
+    const startSpeed = trainer && li ? Math.min(speed, 0.7) : speed;
+    setLiveSpeed(trainer && li ? startSpeed : null);
     playback.current = playChart({
       order: playOrderList,
       bpm,
@@ -103,17 +119,39 @@ export function VersionScreen({ id, play }: { id: string; play?: boolean }) {
       shapeFor,
       nameFor: show,
       fromPart,
+      loop: li ? { from: li.firstPart, to: li.firstPart + li.repeat - 1 } : undefined,
+      speed: startSpeed,
+      speedStep: trainer && li ? 0.05 : undefined,
+      countIn,
+      clickTrack,
+      onLoop: (s) => setLiveSpeed(trainer ? s : null),
       onPosition: (p) => {
         setPos(p);
-        if (!p) playback.current = null;
+        if (!p) {
+          playback.current = null;
+          releaseWake.current();
+          // finished on its own: play the next song in the queue
+          if (!userStopped.current && fromQueue) void playNext();
+        }
       },
       onBeat: (accent) => pulseLights(accent ? 1 : 0.5),
     });
   };
   const stop = () => {
+    userStopped.current = true;
     playback.current?.stop();
     playback.current = null;
+    userStopped.current = false;
+    releaseWake.current();
     setPos(null);
+  };
+  const playNext = async () => {
+    const next = queue.shift();
+    if (!next) return;
+    const vs = await db.versions.where("songId").equals(next.songId).toArray();
+    const e = await db.library.get(next.songId);
+    const nv = vs.find((x) => x.id === (next.versionId ?? e?.preferredVersionId)) ?? vs[0];
+    if (nv) nav.replace({ name: "version", id: nv.id, play: true, fromQueue: true });
   };
 
   const autoplayed = useRef(false);
@@ -177,6 +215,31 @@ export function VersionScreen({ id, play }: { id: string; play?: boolean }) {
         </div>
       </Hero>
 
+      <div className="tools" role="toolbar" aria-label="Practice tools">
+        <Stepper
+          label="Speed"
+          value={`${Math.round((liveSpeed ?? speed) * 100)}%`}
+          onDown={() => setSpeed((s) => Math.max(0.4, Math.round((s - 0.05) * 100) / 100))}
+          onUp={() => setSpeed((s) => Math.min(1.5, Math.round((s + 0.05) * 100) / 100))}
+        />
+        <span className="tools__bpm num">{Math.round(bpm * (liveSpeed ?? speed))} bpm</span>
+        <button className="chip" aria-pressed={countIn} onClick={() => setCountIn((c) => !c)}>
+          Count-in
+        </button>
+        <button className="chip" aria-pressed={clickTrack} onClick={() => setClickTrack((c) => !c)}>
+          Click
+        </button>
+        <button className="chip" aria-pressed={trainer} onClick={() => setTrainer((t) => !t)} title="Needs a looped section">
+          Speed trainer
+        </button>
+        {loopItem !== null && (
+          <button className="chip" aria-pressed onClick={() => setLoopItem(null)}>
+            Looping {order[loopItem]?.section.label || KIND_LABEL[order[loopItem]?.section.kind ?? "custom"]}
+          </button>
+        )}
+      </div>
+      {trainer && loopItem === null && <p className="muted">Loop a section (the loop button next to its name) and the speed trainer starts slow and adds 5% each time round.</p>}
+
       <div className="tools" role="toolbar" aria-label="View tools">
         <Stepper label="Transpose" value={transpose > 0 ? `+${transpose}` : String(transpose)} onDown={() => setTranspose((t) => Math.max(-11, t - 1))} onUp={() => setTranspose((t) => Math.min(11, t + 1))} />
         <Stepper label="Capo" value={capo ? String(capo) : "None"} onDown={() => setViewCapo(Math.max(0, capo - 1))} onUp={() => setViewCapo(Math.min(12, capo + 1))} />
@@ -235,10 +298,17 @@ export function VersionScreen({ id, play }: { id: string; play?: boolean }) {
           return (
             <section key={`${s.id}-${i}`} className="csec" data-active={!!active}>
               <header className="csec__head">
-                <button className="csec__title" onClick={() => start(o.firstPart)} title="Play from here">
-                  {s.label || KIND_LABEL[s.kind]}
-                  {o.repeat > 1 && <span className="csec__rep num">×{o.repeat}</span>}
-                </button>
+                <span className="csec__left">
+                  <button className="csec__title" onClick={() => start(o.firstPart)} title="Play from here">
+                    {s.label || KIND_LABEL[s.kind]}
+                    {o.repeat > 1 && <span className="csec__rep num">×{o.repeat}</span>}
+                  </button>
+                  <button className="loopbtn" aria-pressed={loopItem === i} aria-label={loopItem === i ? "Stop looping this section" : "Loop this section"} onClick={() => setLoopItem((x) => (x === i ? null : i))}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                      <path d="M17 4.5l2.5 2.5L17 9.5M4.5 11.5V10a3 3 0 0 1 3-3h12M7 19.5 4.5 17 7 14.5M19.5 12.5V14a3 3 0 0 1-3 3h-12" />
+                    </svg>
+                  </button>
+                </span>
                 <button
                   className="strum"
                   aria-label={`Strumming: ${pattern.join(" ")}. Tap to hear`}

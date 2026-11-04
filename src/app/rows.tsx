@@ -6,6 +6,7 @@ import * as repo from "../data/repo";
 import { SongRow } from "../ui/SongRow";
 import { useNav } from "./nav";
 import { useOverlays } from "./overlays";
+import { queue } from "./queue";
 
 /** A song row wired to the app: knows whether it's liked, opens the song, the menu and the undo toast. */
 export function ConnectedSongRow({ song, playlistItemId, lead, trail, onOpen }: { song: Song; playlistItemId?: string; lead?: ReactNode; trail?: ReactNode; onOpen?: () => void }) {
@@ -22,6 +23,10 @@ export function ConnectedSongRow({ song, playlistItemId, lead, trail, onOpen }: 
       trail={trail}
       onOpen={onOpen ?? (() => nav.push({ name: "song", id: song.id }))}
       onMenu={() => open({ kind: "songMenu", songId: song.id, playlistItemId })}
+      onQueue={() => {
+        queue.add(song.id, entry?.preferredVersionId);
+        showToast("Added to your practice queue");
+      }}
       onLike={async () => {
         if (liked) {
           const old = await repo.unlike(song.id);
