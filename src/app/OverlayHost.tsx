@@ -15,6 +15,7 @@ import { ChordSheet, FretboardBuilder } from "./ChordSheets";
 import { useNav } from "./nav";
 import { queue } from "./queue";
 import { VersionMenu } from "./VersionMenu";
+import { Chords } from "./screens/Chords";
 import { GroovesSheet } from "./screens/Track";
 import { TrainerSheet } from "./TrainerSheet";
 import { ReportSheet, SuggestSheet } from "./CommunitySheets";
@@ -46,6 +47,7 @@ const TITLES: Record<Overlay["kind"], string> = {
   addToPlaylist: "Add songs",
   sort: "Sort by",
   chord: "Chord",
+  chordPicker: "Pick chords",
   fretboard: "Build a chord",
   versionMenu: "Version options",
   grooves: "Grooves",
@@ -79,6 +81,8 @@ function Content({ o }: { o: Overlay }) {
       return <SortSheet {...o} />;
     case "chord":
       return <ChordSheet name={o.name} tuning={o.tuning} capo={o.capo} current={o.current} onPick={o.onPick} />;
+    case "chordPicker":
+      return <ChordPickerSheet tuning={o.tuning} onPick={o.onPick} />;
     case "fretboard":
       return <FretboardBuilder tuning={o.tuning} capo={o.capo} start={o.start} onDone={o.onDone} />;
     case "versionMenu":
@@ -94,6 +98,31 @@ function Content({ o }: { o: Overlay }) {
     case "pickTrack":
       return <PickTrack songId={o.songId} current={o.current} onPick={o.onPick} />;
   }
+}
+
+function ChordPickerSheet({ tuning, onPick }: { tuning: readonly number[]; onPick: (name: string) => void }) {
+  const { close } = useOverlays();
+  const [added, setAdded] = useState<string[]>([]);
+  return (
+    <>
+      <SheetHead title="Pick chords" sub="Tap a chord to add it as the next bar." />
+      <div className="pickbar" aria-live="polite">
+        <span className="pickbar__list chordname">{added.length ? added.join("  ") : "Nothing added yet"}</span>
+        <button className="btn btn--primary btn--sm" onClick={close}>
+          Done
+        </button>
+      </div>
+      <Chords
+        pick={{
+          tuning,
+          onPick: (name) => {
+            setAdded((a) => [...a, name]);
+            onPick(name);
+          },
+        }}
+      />
+    </>
+  );
 }
 
 function SheetHead({ title, sub }: { title: string; sub?: string }) {

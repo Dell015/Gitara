@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { GUITAR_TUNINGS } from "../../core/instrument";
 import { familyForms, findVoicings, formLabel, formSuffix, moveShape, SHAPE_FAMILIES, type ShapeFamily, type Voicing } from "../../core/shapes";
-import { chordName, mod12, noteName, QUALITIES, type Accidental } from "../../core/theory";
+import { chordName, isChordName, mod12, noteName, normalizeChordName, parseNote, QUALITIES, type Accidental } from "../../core/theory";
 import { Segmented, TopBar } from "../../ui/bits";
 import { ChordDiagram } from "../../ui/ChordDiagram";
 import { useNav } from "../nav";
@@ -101,31 +101,96 @@ const LONG = new Map(TYPES.flatMap((g) => g.items.map((i) => [i.suffix, i.long] 
 
 type Mode = "starter" | "key" | "type" | "barre" | "all";
 
-export function Chords() {
+/** Picker mode: the finder inside a sheet. Tapping a chord hands its name back instead of opening it. */
+export interface ChordPick {
+  tuning: readonly number[];
+  onPick: (name: string) => void;
+}
+
+export function Chords({ pick }: { pick?: ChordPick } = {}) {
   const nav = useNav();
   const { open } = useOverlays();
   const prefs = usePrefs();
   const [mode, setMode] = useState<Mode>("starter");
   const [root, setRoot] = useState(0);
   const [suffix, setSuffix] = useState("");
-  const [tuningId, setTuningId] = useState("standard");
+  const [tuningId, setTuningId] = useState(() => (pick ? (GUITAR_TUNINGS.find((t) => t.tuning.every((m, i) => m === pick.tuning[i]))?.id ?? "standard") : "standard"));
   const [picked, setPicked] = useState<{ family: string; key: string } | null>(null);
+  const [query, setQuery] = useState("");
+  const q = query.trim();
+  const search = useMemo(() => {
+    if (!q) return null;
+    const cq = q.charAt(0).toUpperCase() + q.slice(1);
+    const exact = isChordName(cq) ? normalizeChordName(cq) : null;
+    // "a" + "su" → every chord on A whose type starts with "su"
+    const m = /^([A-Ga-g][#b♯♭]*)(.*)$/.exec(q);
+    const rootPc = m ? parseNote(m[1]!) : null;
+    const rest = (m?.[2] ?? "").toLowerCase();
+    const related =
+      rootPc === null
+        ? []
+        : TYPES.flatMap((g) => g.items)
+            .filter((it) => it.suffix.toLowerCase().startsWith(rest) || (rest.length > 0 && (it.chip.toLowerCase().includes(rest) || it.long.toLowerCase().includes(rest))))
+            .map((it) => chordName({ root: rootPc, quality: { suffix: it.suffix, intervals: [] } }, prefs.accidentals === "flat" ? "flat" : "sharp"))
+            .filter((n) => n !== exact);
+    return { exact, related };
+  }, [q, prefs.accidentals]);
 
   const tuning = (GUITAR_TUNINGS.find((t) => t.id === tuningId) ?? GUITAR_TUNINGS[0]!).tuning;
   const acc: Accidental = prefs.accidentals === "flat" ? "flat" : "sharp";
-  const openChord = (name: string) => open({ kind: "chord", name, tuning, capo: 0 });
+  const openChord = (name: string) => (pick ? pick.onPick(name) : open({ kind: "chord", name, tuning, capo: 0 }));
   const card = (name: string) => <ChordCard key={`${name}|${tuningId}`} name={name} tuning={tuning} left={prefs.leftHanded} onOpen={() => openChord(name)} />;
 
   return (
     <>
-      <TopBar onBack={nav.back} title="Chord finder" />
-      <div className="chordlab">
-        <header className="chordlab__head">
-          <h1 className="h1">Chord finder</h1>
-          <p className="muted">Browse every chord like a chart. Tap one to see all its versions.</p>
-        </header>
+      {!pick && <TopBar onBack={nav.back} title="Chord finder" />}
+      <div className="chordlab" data-pick={pick ? "" : undefined}>
+        {!pick && (
+          <header className="chordlab__head">
+            <h1 className="h1">Chord finder</h1>
+            <p className="muted">Browse every chord like a chart. Tap one to see all its versions.</p>
+          </header>
+        )}
 
-        <div className="chordlab__bar">
+        <div className="chordsearch">
+          <input
+            className="input"
+            type="search"
+            inputMode="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search a chord: Am7, F#m, C/G, Bbmaj7"
+            aria-label="Search for a chord"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          {q && (
+            <button className="link" onClick={() => setQuery("")}>
+              Clear
+            </button>
+          )}
+        </div>
+
+        {search && (
+          <>
+            {search.exact && (
+              <section className="chordlab__section">
+                <h2 className="h2">{search.exact}</h2>
+                <div className="chordlab__grid">{card(search.exact)}</div>
+              </section>
+            )}
+            {search.related.length > 0 && (
+              <section className="chordlab__section">
+                <h2 className="h3">{search.exact ? "Also try" : "Did you mean"}</h2>
+                <div className="chordlab__grid">{search.related.map(card)}</div>
+              </section>
+            )}
+            {!search.exact && search.related.length === 0 && <p className="muted">No chord called “{q}”. Try a note and a type, like Am, F#m7 or Dsus4.</p>}
+          </>
+        )}
+
+        <div className="chordlab__bar" hidden={!!search}>
           <Segmented
             label="Browse"
             value={mode}
@@ -150,7 +215,7 @@ export function Chords() {
           </label>
         </div>
 
-        {mode === "starter" &&
+        {!search && mode === "starter" &&
           STARTER.map((c) => (
             <section key={c.label} className="chordlab__section">
               <div className="chordlab__sechead">
@@ -161,7 +226,7 @@ export function Chords() {
             </section>
           ))}
 
-        {mode === "key" && (
+        {!search && mode === "key" && (
           <>
             <div className="chordlab__roots" role="group" aria-label="Key">
               {ROOTS.map((r) => (
@@ -181,7 +246,7 @@ export function Chords() {
           </>
         )}
 
-        {mode === "type" && (
+        {!search && mode === "type" && (
           <>
             {TYPES.map((g) => (
               <section key={g.label} className="chordlab__section">
@@ -204,9 +269,9 @@ export function Chords() {
           </>
         )}
 
-        {mode === "all" && <EverythingView root={root} setRoot={setRoot} tuning={tuning} acc={acc} onOpen={openChord} />}
+        {!search && mode === "all" && <EverythingView root={root} setRoot={setRoot} tuning={tuning} acc={acc} onOpen={openChord} />}
 
-        {mode === "barre" && (
+        {!search && mode === "barre" && (
           <ShapesView
             picked={picked}
             setPicked={setPicked}
@@ -219,11 +284,13 @@ export function Chords() {
           />
         )}
 
+        {!pick && !search && (
         <div className="stack">
           <button className="btn btn--secondary" onClick={() => open({ kind: "fretboard", tuning, capo: 0, onDone: () => undefined })}>
             Place your fingers instead
           </button>
         </div>
+        )}
       </div>
     </>
   );

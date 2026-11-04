@@ -14,8 +14,10 @@ import { db } from "../../data/local-db";
 import { findPublicVersionDuplicate } from "../../data/remote";
 import * as repo from "../../data/repo";
 import { Segmented, TopBar } from "../../ui/bits";
-import { StrumGlyph } from "../../ui/ChordDiagram";
+import { ChordDiagram, StrumGlyph } from "../../ui/ChordDiagram";
+import { usePrefs } from "../prefs";
 import { IconPause, IconPlay, IconPlus } from "../../ui/icons";
+import type { Bar } from "../../core/model";
 import { VideoPanel } from "../../ui/VideoPanel";
 import { useNav } from "../nav";
 import { useOverlays } from "../overlays";
@@ -78,6 +80,7 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
   const [pos, setPos] = useState<PlayPosition | null>(null);
   const playback = useRef<Playback | null>(null);
   const tapper = useRef(new TapTempo());
+  const prefs = usePrefs();
   const [step, setStep] = useState(0);
   const [secId, setSecId] = useState<string | null>(null);
   const [strumSecId, setStrumSecId] = useState<string | null>(null);
@@ -205,6 +208,52 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
     set({ sections: [...d.sections, s], arrangement: [...d.arrangement, { sectionId: s.id, repeat: 1 }] });
     setSecId(s.id);
   };
+  /** Chords are edited as bars; the section keeps them as text so drafts and saved versions stay the same shape. */
+  const writeBars = (sidv: string, fn: (bars: Bar[]) => Bar[]) => {
+    setTouched(true);
+    setD((p) => {
+      if (!p) return p;
+      const bp = beatsPerBar(p.timeSignature);
+      return {
+        ...p,
+        sections: p.sections.map((x) => (x.id === sidv ? { ...x, text: formatBars(fn(parseBars(x.text, bp).bars), bp) } : x)),
+      };
+    });
+  };
+  const evenBeats = (names: string[], bp: number) => names.map((name, i) => ({ name, beats: Math.floor(bp / names.length) + (i < bp % names.length ? 1 : 0) })).filter((c) => c.beats > 0);
+  /** Adds a chord as a new bar, or into an existing bar (sharing its beats). */
+  const appendChord = (sidv: string, name: string, barIndex?: number) =>
+    writeBars(sidv, (bars) => {
+      const bp = beatsPerBar(d?.timeSignature);
+      if (barIndex === undefined || !bars[barIndex]) return [...bars, { chords: [{ name, beats: bp }] }];
+      const names = [...bars[barIndex]!.chords.map((c) => c.name), name].slice(0, bp);
+      return bars.map((b, i) => (i === barIndex ? { chords: evenBeats(names, bp) } : b));
+    });
+  const removeChord = (sidv: string, bi: number, ci: number) =>
+    writeBars(sidv, (bars) => {
+      const bp = beatsPerBar(d?.timeSignature);
+      const b = bars[bi];
+      if (!b) return bars;
+      const names = b.chords.filter((_, k) => k !== ci).map((c) => c.name);
+      if (!names.length) return bars.filter((_, i) => i !== bi);
+      return bars.map((x, i) => (i === bi ? { chords: evenBeats(names, bp) } : x));
+    });
+  const moveBar = (sidv: string, bi: number, dir: -1 | 1) =>
+    writeBars(sidv, (bars) => {
+      const j = bi + dir;
+      if (j < 0 || j >= bars.length) return bars;
+      const out = [...bars];
+      [out[bi], out[j]] = [out[j]!, out[bi]!];
+      return out;
+    });
+  const repeatBar = (sidv: string, bi: number) =>
+    writeBars(sidv, (bars) => {
+      const b = bars[bi];
+      if (!b) return bars;
+      const out = [...bars];
+      out.splice(bi + 1, 0, { chords: b.chords.map((c) => ({ ...c })) });
+      return out;
+    });
   const removeSection = (sidv: string) => set({ sections: d.sections.filter((s) => s.id !== sidv), arrangement: d.arrangement.filter((a) => a.sectionId !== sidv) });
   const duplicateSection = (s: EditSection) => {
     const c = { ...s, id: sid(), strum: [...s.strum] };
@@ -309,7 +358,18 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
   const curStrum = d.sections.find((x) => x.id === strumSecId) ?? d.sections[0]!;
   const barsCount = content.sections.reduce((n, x) => n + x.bars.length, 0);
   const videoUrl = d.youtubeUrl.trim() || song.youtubeUrl;
+  // What is still needed before moving on (null = this step is done).
+  const orderedParts = d.arrangement.filter((a) => d.sections.some((x) => x.id === a.sectionId && (parsed.get(x.id)?.bars.length ?? 0) > 0));
+  const missing = (i: number): string | null => {
+    if (i === 0) return null;
+    if (i === 1) return barsCount === 0 ? "Add at least one chord to go on." : unknown.length ? `Fix the words that aren't chords: ${unknown.join(", ")}.` : null;
+    if (i === 3) return orderedParts.length === 0 ? "Put at least one section in the song order." : null;
+    return null;
+  };
+  const reachable = (i: number) => STEPS.slice(0, i).every((_, k) => !missing(k));
+  const blocked = missing(step);
   const goto = (n: number) => {
+    if (n > step && !reachable(n)) return;
     playback.current?.stop();
     playback.current = null;
     setStep(Math.max(0, Math.min(STEPS.length - 1, n)));
@@ -357,7 +417,7 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
       <ol className="esteps" aria-label="Steps">
         {STEPS.map((name, i) => (
           <li key={name} className="esteps__item" data-state={i === step ? "now" : i < step ? "done" : "todo"}>
-            <button className="esteps__btn" aria-current={i === step ? "step" : undefined} onClick={() => goto(i)}>
+            <button className="esteps__btn" aria-current={i === step ? "step" : undefined} disabled={!reachable(i)} onClick={() => goto(i)}>
               <span className="esteps__n num">{i + 1}</span>
               <span className="esteps__name">{name}</span>
             </button>
@@ -492,9 +552,7 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
       {step === 1 && (
         <section className="block">
           <h2 className="h2">Chords, one section at a time</h2>
-          <p className="muted">
-            One bar per chord: <span className="kbdtext">Am F C G</span>. Two in a bar: <span className="kbdtext">Am C | F G</span>. A dot holds a chord one more beat: <span className="kbdtext">Am . . F</span>.
-          </p>
+          <p className="muted">Add the chords in the order they are played, one bar each. Tap a shape to pick a different fingering. “+ Chord” puts a second chord in the same bar.</p>
           {videoUrl && <VideoPanel url={videoUrl} title={song.title} />}
           {sectionPills(cur.id, setSecId, true)}
           <div className="esec">
@@ -508,46 +566,76 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
               </select>
               <input className="input input--sm" value={cur.label} onChange={(e) => setSection(cur.id, { label: e.target.value })} placeholder="Name (optional), e.g. Verse 2" maxLength={40} aria-label="Section name" />
             </div>
-            <textarea
-              className="input esec__chords"
-              value={cur.text}
-              onChange={(e) => setSection(cur.id, { text: e.target.value })}
-              placeholder="Am F C G"
-              rows={3}
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-              aria-label={`${nameOf(cur)} chords`}
-            />
-            {cp && cp.unknown.length > 0 && <p className="field__error">Not chords: {cp.unknown.join(", ")}. Check the spelling, or write N.C. for no chord.</p>}
-            {cp && cp.bars.length > 0 && (
-              <ol className="bars bars--mini" aria-label="Bars">
+            {cp && cp.unknown.length > 0 && <p className="field__error">Not chords: {cp.unknown.join(", ")}. Remove them and pick the chord again.</p>}
+            {cp && cp.bars.length > 0 ? (
+              <ol className="ebars" aria-label={`${nameOf(cur)} bars`}>
                 {cp.bars.map((b, bi) => (
-                  <li key={bi} className="cbar">
-                    {b.chords.map((c, ci) => (
-                      <button
-                        key={ci}
-                        className="cbar__chord chordname"
-                        style={{ flexGrow: c.beats }}
-                        onClick={() =>
-                          c.name !== NO_CHORD &&
-                          open({
-                            kind: "chord",
-                            name: c.name,
-                            tuning: d.tuning,
-                            capo: d.capo,
-                            current: d.voicings[c.name]?.frets,
-                            onPick: (vv) => set({ voicings: { ...d.voicings, [c.name]: { frets: vv.frets, fingers: vv.fingers, baseFret: vv.baseFret } } }),
-                          })
-                        }
-                      >
-                        {c.name}
+                  <li key={bi} className="ebar">
+                    <span className="ebar__n num">{bi + 1}</span>
+                    <div className="ebar__chords">
+                      {b.chords.map((c, ci) => {
+                        const v = c.name === NO_CHORD ? null : d.voicings[c.name] ?? findVoicings(c.name, d.tuning, 1)[0];
+                        return (
+                          <div key={ci} className="echord">
+                            <button
+                              className="echord__remove"
+                              aria-label={`Remove ${c.name} from bar ${bi + 1}`}
+                              onClick={() => removeChord(cur.id, bi, ci)}
+                            >
+                              <svg viewBox="0 0 24 24" width="16" height="16" className="icon" aria-hidden="true">
+                                <path d="M6 6l12 12M18 6L6 18" />
+                              </svg>
+                            </button>
+                            <span className="echord__name chordname">{c.name}</span>
+                            {v && (
+                              <button
+                                className="echord__shape"
+                                aria-label={`Choose a shape for ${c.name}`}
+                                onClick={() =>
+                                  open({
+                                    kind: "chord",
+                                    name: c.name,
+                                    tuning: d.tuning,
+                                    capo: d.capo,
+                                    current: d.voicings[c.name]?.frets,
+                                    onPick: (vv) => set({ voicings: { ...d.voicings, [c.name]: { frets: vv.frets, fingers: vv.fingers, baseFret: vv.baseFret } } }),
+                                  })
+                                }
+                              >
+                                <ChordDiagram voicing={v} leftHanded={prefs.leftHanded} size={72} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="ebar__tools">
+                      <button className="iconbtn iconbtn--plain" aria-label={`Move bar ${bi + 1} earlier`} disabled={bi === 0} onClick={() => moveBar(cur.id, bi, -1)}>
+                        <svg viewBox="0 0 24 24" width="18" height="18" className="icon" aria-hidden="true">
+                          <path d="M14.5 6l-6 6 6 6" />
+                        </svg>
                       </button>
-                    ))}
+                      <button className="iconbtn iconbtn--plain" aria-label={`Move bar ${bi + 1} later`} disabled={bi === cp.bars.length - 1} onClick={() => moveBar(cur.id, bi, 1)}>
+                        <svg viewBox="0 0 24 24" width="18" height="18" className="icon" aria-hidden="true">
+                          <path d="M9.5 6l6 6-6 6" />
+                        </svg>
+                      </button>
+                      <button className="link" onClick={() => repeatBar(cur.id, bi)}>
+                        Repeat
+                      </button>
+                      <button className="link" onClick={() => open({ kind: "chordPicker", tuning: d.tuning, onPick: (name) => appendChord(cur.id, name, bi) })}>
+                        + Chord
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ol>
+            ) : (
+              <p className="muted">No chords in this section yet.</p>
             )}
+            <button className="btn btn--secondary" onClick={() => open({ kind: "chordPicker", tuning: d.tuning, onPick: (name) => appendChord(cur.id, name) })}>
+              <IconPlus /> Add chords
+            </button>
             <input className="input input--sm" value={cur.note} onChange={(e) => setSection(cur.id, { note: e.target.value })} placeholder="Cue note (optional), e.g. after the drum fill" maxLength={120} aria-label="Cue note" />
             <div className="esec__actions">
               <button
@@ -734,6 +822,11 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
         </section>
       )}
 
+      {blocked && step < STEPS.length - 1 && (
+        <p className="field__hint" role="status">
+          {blocked}
+        </p>
+      )}
       <div className="form__footer form__footer--row">
         {step > 0 ? (
           <button className="btn btn--secondary btn--big" onClick={() => goto(step - 1)}>
@@ -743,11 +836,11 @@ export function EditVersion({ songId, id, part }: { songId: string; id?: string;
           <span />
         )}
         {step < STEPS.length - 1 ? (
-          <button className="btn btn--primary btn--big" onClick={() => goto(step + 1)}>
+          <button className="btn btn--primary btn--big" onClick={() => goto(step + 1)} disabled={!!blocked}>
             Next: {STEPS[step + 1]}
           </button>
         ) : (
-          <button className="btn btn--primary btn--big" onClick={() => void save()} disabled={saving}>
+          <button className="btn btn--primary btn--big" onClick={() => void save()} disabled={saving || [0, 1, 3].some((k) => !!missing(k))}>
             Save version
           </button>
         )}

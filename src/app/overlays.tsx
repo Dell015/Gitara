@@ -18,6 +18,7 @@ export type Overlay =
   | { kind: "addToPlaylist"; playlistId: string }
   | { kind: "sort"; current: string; options: { id: string; label: string }[]; onPick: (id: string) => void }
   | { kind: "chord"; name: string; tuning: readonly number[]; capo: number; current?: number[]; onPick?: (v: Voicing) => void }
+  | { kind: "chordPicker"; tuning: readonly number[]; onPick: (name: string) => void }
   | { kind: "fretboard"; tuning: readonly number[]; capo: number; start?: number[]; onDone: (name: string, v: Voicing) => void }
   | { kind: "versionMenu"; id: string }
   | { kind: "grooves"; onPick: (p: Preset) => void }
