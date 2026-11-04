@@ -1647,6 +1647,9 @@ select.input {
     opacity: 0.35;
     cursor: default;
   }
+  .dbar__spacer {
+    flex: 1;
+  }
   .dbar__search {
     justify-self: center;
     width: min(520px, 100%);
@@ -1724,8 +1727,7 @@ select.input {
   .page > .topbar--over {
     max-width: none;
   }
-  .screenhead .avatar,
-  .searchbar--page {
+  .screenhead .avatar {
     display: none;
   }
   .screenhead {
@@ -3242,16 +3244,6 @@ svg.icon:not([stroke]) {
     gap: var(--space-5);
   }
 }
-@media (min-width: 1280px) {
-  /* the right panel already holds the tools and Up next */
-  .app:has(.rpanel) .home {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .app:has(.rpanel) .home__side {
-    display: none;
-  }
-}
-
 /* Continue card: on a phone the button gets its own line so the title has room */
 .continue--big .continue__text {
   flex: 1 1 0;
@@ -3276,26 +3268,13 @@ svg.icon:not([stroke]) {
   }
 }
 
-/* Home goes two-column only when there's room (and the right panel isn't already showing the tools) */
-@media (min-width: 1280px) {
-  .home {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-    gap: var(--space-6);
-    align-items: start;
+/* Home is one column of tools; on a wide screen the tiles open up to a row of four */
+@media (min-width: 900px) {
+  .home__main .tooltiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .home__main,
-  .home__side {
-    display: grid;
-    gap: var(--space-6);
-    align-content: start;
-  }
-  .home__side {
-    position: sticky;
-    top: 84px;
-  }
-  .home__side .tooltiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .home__main .tooltile--wide {
+    grid-column: 1 / -1;
   }
 }
 
@@ -3725,4 +3704,139 @@ svg.icon:not([stroke]) {
 .srow__phonemeta {
   flex: none;
   margin-left: 0.25em;
+}
+
+/* ============================================================ chord library (a chart you can browse) */
+.chordlab {
+  display: grid;
+  gap: var(--space-5);
+  padding-bottom: var(--space-6);
+}
+.chordlab__head {
+  display: grid;
+  gap: var(--space-1);
+}
+.chordlab__bar {
+  display: grid;
+  gap: var(--space-3);
+}
+.chordlab__tuning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.chordlab__tuninglabel {
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+.chordlab__tuning select {
+  max-width: 12rem;
+}
+.chordlab__section {
+  display: grid;
+  gap: var(--space-3);
+}
+.chordlab__sechead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+.chordlab__sechead .muted {
+  margin: 0;
+  font-size: 0.875rem;
+}
+.chordlab__roots {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.chordlab__root {
+  justify-content: center;
+  min-height: 44px;
+}
+.chordlab__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.chordcard {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3) var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: 14px;
+  background: var(--ink-1);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color var(--dur-hover) var(--ease-out), transform 120ms var(--ease-out);
+}
+.chordcard:active {
+  transform: scale(0.97);
+  background: var(--ink-2);
+}
+@media (hover: hover) {
+  .chordcard:hover {
+    background: var(--ink-2);
+  }
+}
+.chordcard__name {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+.chordcard .chordbox {
+  width: 100%;
+  height: auto;
+  max-width: 112px;
+}
+.chordcard__ph {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 112px;
+  aspect-ratio: 100 / 120;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+.shapegroup {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.shapegroup__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.shapegroup__title .num {
+  margin-left: 4px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.shapegroup .row__sub {
+  margin: 0;
+}
+@media (min-width: 600px) {
+  .chordlab__grid {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: var(--space-3);
+  }
+  .chordlab__bar {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
+  .chordlab__tuning {
+    justify-self: end;
+  }
+  .chordlab__roots {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+}
+@media (min-width: 900px) {
+  .chordlab {
+    max-width: 62rem;
+  }
 }

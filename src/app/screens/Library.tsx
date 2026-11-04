@@ -6,7 +6,7 @@ import { isMine } from "../../data/auth";
 import { othersPlaylistsCached } from "../../data/community";
 import { db } from "../../data/local-db";
 import { Chips, Empty, ItemRow, Mark, SubChips } from "../../ui/bits";
-import { IconClose, IconGrid, IconList, IconPin, IconPlus, IconSearch, IconSort } from "../../ui/icons";
+import { IconGrid, IconList, IconPin, IconPlus, IconSort } from "../../ui/icons";
 import { plural, useCanPlay, useLibrarySongs, usePlaylistCounts, usePlaylists } from "../hooks";
 import { warmthFor } from "../../ui/artwork";
 import { useNav } from "../nav";
@@ -76,8 +76,6 @@ export function Library() {
   const [sort, setSortState] = useState<Sort>(initialSort);
   const [initialView, persistView] = pref<"list" | "grid">("gitara.lib.view", "list");
   const [view, setViewState] = useState(initialView);
-  const [searching, setSearching] = useState(false);
-  const [q, setQ] = useState("");
 
   const setSort = (s: Sort) => {
     setSortState(s);
@@ -162,8 +160,7 @@ export function Library() {
       }
     }
 
-    const nq = normalize(q);
-    const filtered = nq ? out.filter((i) => normalize(i.title).includes(nq) || (i.artist && normalize(i.artist).includes(nq))) : out;
+    const filtered = out;
     const cmp: Record<Sort, (a: Item, b: Item) => number> = {
       recents: (a, b) => b.recentAt - a.recentAt,
       added: (a, b) => b.addedAt.localeCompare(a.addedAt),
@@ -171,11 +168,11 @@ export function Library() {
       artist: (a, b) => (a.artist ?? a.title).localeCompare(b.artist ?? b.title) || a.title.localeCompare(b.title),
     };
     return filtered.sort((a, b) => Number(b.pinned) - Number(a.pinned) || cmp[sort](a, b));
-  }, [lib, playlists, counts, recents, top, songSub, madeSub, plSub, sort, q, nav, open]);
+  }, [lib, playlists, counts, recents, top, songSub, madeSub, plSub, sort, nav, open]);
 
   const likedCount = lib?.length ?? 0;
   const learningCount = (lib ?? []).filter((x) => x.entry.status === "learning").length;
-  const showCollections = !top && !q && likedCount > 0;
+  const showCollections = !top && likedCount > 0;
   const loading = lib === undefined || playlists === undefined;
   const nothing = !loading && !likedCount && !(playlists ?? []).length;
 
@@ -186,25 +183,12 @@ export function Library() {
         tracked
         right={
           <>
-            <button className="iconbtn iconbtn--plain" aria-label="Search your Library" aria-pressed={searching} onClick={() => (setSearching((s) => !s), setQ(""))}>
-              <IconSearch />
-            </button>
             <button className="iconbtn iconbtn--plain" aria-label="Create" onClick={() => open({ kind: "create" })}>
               <IconPlus />
             </button>
           </>
         }
       />
-      {searching && (
-        <div className="searchbar searchbar--inline">
-          <IconSearch />
-          <input className="searchbar__input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search your Library" autoFocus aria-label="Search your Library" />
-          <button className="iconbtn iconbtn--plain" aria-label="Close search" onClick={() => (setSearching(false), setQ(""))}>
-            <IconClose />
-          </button>
-        </div>
-      )}
-
       {!nothing && (
         <div className="filterbar">
           <div className="filterbar__chips">
@@ -325,7 +309,7 @@ export function Library() {
           ))}
         </ul>
       )}
-      {!nothing && !loading && !items.length && <p className="muted">Nothing here{q ? ` matches "${q}"` : " yet"}.</p>}
+      {!nothing && !loading && !items.length && <p className="muted">Nothing here yet.</p>}
     </>
   );
 }

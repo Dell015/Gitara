@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { findVoicings, voicingFromFrets, type Voicing } from "../core/shapes";
-import { accidentalForKey, identifyChord, noteName } from "../core/theory";
+import { findVoicings, SHAPE_KINDS, shapeKind, voicingFromFrets, type Voicing } from "../core/shapes";
+import { accidentalForKey, chordTones, identifyChord, noteName, parseChord } from "../core/theory";
 import { tuningName } from "../core/tunings";
 import { strum } from "../audio/guitar";
 import { ownerForNewRow } from "../data/auth";
@@ -26,7 +26,14 @@ export function ChordSheet({
 }) {
   const { open, close } = useOverlays();
   const prefs = usePrefs();
-  const shapes = useMemo(() => findVoicings(name, tuning, 8), [name, tuning]);
+  // every shape we can find, grouped the way players think about them (open, moveable, barre, high)
+  const grouped = useMemo(() => {
+    const all = findVoicings(name, tuning, 24);
+    return SHAPE_KINDS.map((k) => ({ ...k, shapes: all.filter((s) => shapeKind(s) === k.id) })).filter((g) => g.shapes.length);
+  }, [name, tuning]);
+  const shapes = useMemo(() => grouped.flatMap((g) => g.shapes), [grouped]);
+  const parsed = parseChord(name);
+  const spelled = parsed ? chordTones(parsed).map((pc) => noteName(pc, accidentalForKey(name))).join("  ") : "";
   const [sel, setSel] = useState(() => Math.max(0, current ? shapes.findIndex((s) => s.frets.join() === current.join()) : 0));
   const v = shapes[sel];
   return (
@@ -36,8 +43,9 @@ export function ChordSheet({
           <h2 className="sheet__title chordname">{name}</h2>
           <p className="row__sub">
             {tuningName(tuning)}
-            {capo ? ` · capo ${capo}` : ""} · {shapes.length ? `${shapes.length} shapes` : "no shape found"}
+            {capo ? ` · capo ${capo}` : ""} · {shapes.length ? `${shapes.length} ${shapes.length === 1 ? "version" : "versions"}` : "no shape found"}
           </p>
+          {spelled && <p className="row__sub num">{spelled}</p>}
         </div>
         {v && (
           <button className="ringbtn" aria-label={`Hear ${name}`} onClick={() => strum(v.frets, tuning, capo)}>
@@ -46,23 +54,34 @@ export function ChordSheet({
         )}
       </div>
       {shapes.length ? (
-        <div className="shapes" role="radiogroup" aria-label={`Shapes for ${name}`}>
-          {shapes.map((s, i) => (
-            <button
-              key={s.frets.join()}
-              role="radio"
-              aria-checked={i === sel}
-              className="shape"
-              onClick={() => {
-                setSel(i);
-                strum(s.frets, tuning, capo);
-              }}
-            >
-              <ChordDiagram voicing={s} name={name} leftHanded={prefs.leftHanded} size={84} highlight={i === sel} />
-              <span className="shape__frets num">{s.frets.map((f) => (f < 0 ? "x" : f)).join("")}</span>
-            </button>
-          ))}
-        </div>
+        grouped.map((g) => (
+          <section key={g.id} className="shapegroup">
+            <h3 className="shapegroup__title">
+              {g.label} <span className="num">{g.shapes.length}</span>
+            </h3>
+            <p className="row__sub">{g.hint}</p>
+            <div className="shapes" role="radiogroup" aria-label={`${g.label} for ${name}`}>
+              {g.shapes.map((s) => {
+                const i = shapes.indexOf(s);
+                return (
+                  <button
+                    key={s.frets.join()}
+                    role="radio"
+                    aria-checked={i === sel}
+                    className="shape"
+                    onClick={() => {
+                      setSel(i);
+                      strum(s.frets, tuning, capo);
+                    }}
+                  >
+                    <ChordDiagram voicing={s} name={name} leftHanded={prefs.leftHanded} size={84} highlight={i === sel} />
+                    <span className="shape__frets num">{s.frets.map((f) => (f < 0 ? "x" : f)).join("")}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))
       ) : (
         <p className="sheet__text">Gitara couldn't find a shape for this in {tuningName(tuning)}. Build it on the fretboard.</p>
       )}

@@ -3,22 +3,19 @@
  * the top bar (back, search everywhere, account) and the right panel (wide screens).
  */
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { db } from "../data/local-db";
 import { Art } from "../ui/Art";
 import { warmthFor } from "../ui/artwork";
 import { HeatMark } from "../ui/HeatMark";
-import { IconBack, IconClose, IconGroup, IconJam, IconPerson, IconPractice, IconSearch, IconTuner } from "../ui/icons";
+import { IconBack, IconClose, IconGroup, IconJam, IconPerson, IconPractice, IconSongs, IconTuner } from "../ui/icons";
 import { useNav } from "./nav";
 import { useOverlays } from "./overlays";
 import { useQueue } from "./queue";
-import { useSearch } from "./searchStore";
 
 export function DesktopBar() {
   const nav = useNav();
   const { open } = useOverlays();
-  const [q, setQ] = useSearch();
-  const input = useRef<HTMLInputElement>(null);
 
   // "/" or Ctrl/Cmd+K jumps to search; Alt+← goes back.
   useEffect(() => {
@@ -26,8 +23,12 @@ export function DesktopBar() {
       const typing = e.target instanceof HTMLElement && (e.target.closest("input, textarea, select, [contenteditable]") !== null);
       if ((e.key === "/" && !typing) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) {
         e.preventDefault();
-        input.current?.focus();
-        input.current?.select();
+        if (nav.tab !== "search") nav.switchTab("search");
+        window.setTimeout(() => {
+          const box = document.querySelector<HTMLInputElement>(".searchbar__input");
+          box?.focus();
+          box?.select();
+        }, 60);
       } else if (e.altKey && e.key === "ArrowLeft") {
         e.preventDefault();
         nav.back();
@@ -42,27 +43,7 @@ export function DesktopBar() {
       <button className="glassbtn" aria-label="Back" onClick={nav.back} disabled={nav.depth === 0}>
         <IconBack />
       </button>
-      <label className="dbar__search">
-        <IconSearch />
-        <input
-          ref={input}
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            if (nav.tab !== "search") nav.switchTab("search");
-          }}
-          onFocus={() => nav.tab !== "search" && q && nav.switchTab("search")}
-          placeholder="What do you want to play?"
-          aria-label="Search Gitara"
-        />
-        {q ? (
-          <button className="iconbtn iconbtn--plain" aria-label="Clear search" onClick={() => setQ("")}>
-            <IconClose />
-          </button>
-        ) : (
-          <kbd className="dbar__kbd">/</kbd>
-        )}
-      </label>
+      <span className="dbar__spacer" />
       <button className="avatar avatar--bar" aria-label="Account and settings" onClick={() => open({ kind: "account" })}>
         <IconPerson />
       </button>
@@ -121,6 +102,10 @@ export function RightPanel() {
         <button className="rtool" onClick={() => nav.push({ name: "track" })}>
           <IconJam />
           <span>Beat maker</span>
+        </button>
+        <button className="rtool" onClick={() => nav.push({ name: "chords" })}>
+          <IconSongs />
+          <span>Chords</span>
         </button>
         <button className="rtool" onClick={() => nav.push({ name: "jam" })}>
           <IconGroup />

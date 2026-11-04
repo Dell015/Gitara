@@ -1,33 +1,24 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useState } from "react";
 import { audio } from "../../audio/guitar";
-import { GUITAR } from "../../core/instrument";
-import type { Song } from "../../core/model";
 import { db } from "../../data/local-db";
-import { popularSongs, recentPublicSongs } from "../../data/remote";
 import { Art } from "../../ui/Art";
 import { warmthFor } from "../../ui/artwork";
-import { Empty, Mark } from "../../ui/bits";
-import { HeatMark } from "../../ui/HeatMark";
-import { IconArrow, IconClose, IconGroup, IconJam, IconPlay, IconPlaylists, IconPractice, IconSongs, IconTuner } from "../../ui/icons";
+import { Empty } from "../../ui/bits";
+import { IconArrow, IconClose, IconGroup, IconJam, IconPlay, IconPractice, IconSongs, IconTuner } from "../../ui/icons";
 import { LiveArt } from "../../ui/LiveArt";
-import { greeting, plural, useCanPlay, useLibrarySongs, usePlaylists } from "../hooks";
+import { greeting, useLibrarySongs, usePlaylists } from "../hooks";
 import { useNav } from "../nav";
-import { useOverlays } from "../overlays";
 import { queue, useQueue } from "../queue";
-import { SongList } from "../rows";
 import { ScreenHead } from "../Shell";
 
 /**
- * Home: your way back into playing, then your songbook, then the tools, then what's out there.
- * (The Practice tab is folded in here: Continue, Up next and the tools.)
+ * Home is the tools page: a way back into what you were practising, every tool, and Up next.
+ * Songs live in Search (browse) and Library (yours).
  */
 export function Home() {
   const nav = useNav();
-  const { open } = useOverlays();
   const lib = useLibrarySongs();
   const playlists = usePlaylists();
-  const canPlay = useCanPlay();
   const items = useQueue();
   const dayKey = new Date().toISOString().slice(0, 10);
 
@@ -44,33 +35,7 @@ export function Home() {
     }
     return null;
   });
-  const recent = useLiveQuery(async () => {
-    const r = await db.recents.orderBy("openedAt").reverse().limit(10).toArray();
-    const out: { key: string; seed: string; warmth?: number; title: string; kind: "song" | "playlist" | "artist"; go: () => void }[] = [];
-    for (const x of r) {
-      if (x.kind === "song") {
-        const s = await db.songs.get(x.refId);
-        if (s) out.push({ key: x.key, seed: s.id, warmth: warmthFor((await db.library.get(s.id))?.status), title: s.title, kind: "song", go: () => nav.push({ name: "song", id: s.id }) });
-      } else if (x.kind === "playlist") {
-        const p = await db.playlists.get(x.refId);
-        if (p) out.push({ key: x.key, seed: p.id, title: p.name, kind: "playlist", go: () => nav.goTo("library", { name: "playlist", id: p.id }) });
-      } else out.push({ key: x.key, seed: x.refId, title: x.refId, kind: "artist", go: () => nav.push({ name: "artist", artist: x.refId }) });
-    }
-    return out;
-  }, [nav]);
   const queued = useLiveQuery(async () => (await db.songs.bulkGet(items.slice(0, 4).map((i) => i.songId))).map((s, k) => ({ item: items[k]!, song: s })), [items]);
-
-  const [popular, setPopular] = useState<{ song: Song; saves: number }[]>([]);
-  const [fresh, setFresh] = useState<Song[]>([]);
-  useEffect(() => {
-    popularSongs(8).then(setPopular, () => setPopular([]));
-    recentPublicSongs(8).then(setFresh, () => setFresh([]));
-  }, []);
-
-  const learning = (lib ?? []).filter((x) => x.entry.status === "learning");
-  const libIds = new Set((lib ?? []).map((x) => x.song.id));
-  const popularNew = popular.filter((p) => !libIds.has(p.song.id));
-  const freshNew = fresh.filter((s) => !libIds.has(s.id) && !popular.some((p) => p.song.id === s.id));
 
   const playQueue = async () => {
     const first = queue.get()[0];
@@ -130,87 +95,7 @@ export function Home() {
               </div>
             </Empty>
           ) : null}
-
-          {/* 2. your songbook */}
-          {!empty && (
-            <section className="block">
-              <div className="block__head">
-                <h2 className="h2">Your songbook</h2>
-                <button className="link" onClick={() => nav.switchTab("library")}>
-                  Open Library
-                </button>
-              </div>
-              <div className="shortcuts">
-                <button className="shortcut" onClick={() => nav.goTo("library", { name: "collection", kind: "liked" })}>
-                  <Mark kind="liked" />
-                  <span className="shortcut__title">Liked songs</span>
-                  <span className="shortcut__sub num">{plural(lib?.length ?? 0, "song")}</span>
-                </button>
-                <button className="shortcut" onClick={() => nav.goTo("library", { name: "collection", kind: "learning" })}>
-                  <Mark kind="learning" />
-                  <span className="shortcut__title">Learning now</span>
-                  <span className="shortcut__sub num">{plural(learning.length, "song")}</span>
-                </button>
-                <button className="shortcut" onClick={() => nav.goTo("library", { name: "collection", kind: "canplay" })}>
-                  <Art seed="songs-i-can-play" warmth={1} className="mark" />
-                  <span className="shortcut__title">Songs I can play</span>
-                  <span className="shortcut__sub num">{plural(canPlay?.size ?? 0, "song")}</span>
-                </button>
-                <button className="shortcut" onClick={() => nav.switchTab("library")}>
-                  <span className="mark mark--icon">
-                    <IconPlaylists />
-                  </span>
-                  <span className="shortcut__title">Playlists</span>
-                  <span className="shortcut__sub num">{plural(playlists?.length ?? 0, "playlist")}</span>
-                </button>
-              </div>
-              {recent && recent.filter((r) => r.seed !== resume?.song.id).length > 0 && (
-                <div className="quick">
-                  {recent
-                    .filter((r) => r.seed !== resume?.song.id)
-                    .slice(0, 6)
-                    .map((r) => (
-                      <button key={r.key} className="quick__item" onClick={r.go}>
-                        <Mark kind={r.kind} seed={r.seed} warmth={r.warmth} />
-                        <span className="quick__title">{r.title}</span>
-                      </button>
-                    ))}
-                </div>
-              )}
-            </section>
-          )}
-
-          {learning.length > 0 && (
-            <section className="block">
-              <div className="block__head">
-                <h2 className="h2">
-                  <HeatMark heat="learning" /> Learning now
-                </h2>
-                <button className="link" onClick={() => nav.goTo("library", { name: "collection", kind: "learning" })}>
-                  Show all
-                </button>
-              </div>
-              <SongList songs={learning.slice(0, 4).map((x) => x.song)} />
-            </section>
-          )}
-
-          {/* 4. what's out there */}
-          {popularNew.length > 0 && (
-            <section className="block">
-              <h2 className="h2">Popular in Gitara</h2>
-              <SongList songs={popularNew.slice(0, 6).map((p) => p.song)} />
-            </section>
-          )}
-          {freshNew.length > 0 && (
-            <section className="block">
-              <h2 className="h2">New in Gitara</h2>
-              <SongList songs={freshNew.slice(0, 6)} />
-            </section>
-          )}
-        </div>
-
-        <aside className="home__side">
-          {/* 3. tools for musicians */}
+          {/* every tool, in one place */}
           <section className="block">
             <h2 className="h2">Tools</h2>
             <div className="tooltiles">
@@ -229,13 +114,10 @@ export function Home() {
                 <span className="tooltile__title">Beat maker</span>
                 <span className="tooltile__sub">Drums to play along with</span>
               </button>
-              <button
-                className="tooltile"
-                onClick={() => open({ kind: "fretboard", tuning: GUITAR.standardTuning, capo: 0, onDone: () => undefined })}
-              >
+              <button className="tooltile" onClick={() => nav.push({ name: "chords" })}>
                 <IconSongs />
                 <span className="tooltile__title">Chord finder</span>
-                <span className="tooltile__sub">Place fingers, get the name</span>
+                <span className="tooltile__sub">Every chord, every key. Or place your fingers</span>
               </button>
               <button className="tooltile tooltile--wide" onClick={() => nav.push({ name: "jam" })}>
                 <IconGroup />
@@ -280,7 +162,7 @@ export function Home() {
               <p className="muted">Swipe right on a song (or use its menu) to queue it, then play them back to back.</p>
             )}
           </section>
-        </aside>
+        </div>
       </div>
     </>
   );

@@ -5,12 +5,14 @@ import { normalize } from "../../core/text";
 import { searchPublicPlaylists } from "../../data/community";
 import { db } from "../../data/local-db";
 import { searchRecordings, type MbSuggestion } from "../../data/musicbrainz";
-import { searchPublicSongs } from "../../data/remote";
+import { popularSongs, recentPublicSongs, searchPublicSongs } from "../../data/remote";
 import { Chips, Empty, ItemRow, Mark } from "../../ui/bits";
 import { Art } from "../../ui/Art";
+import { HeatMark } from "../../ui/HeatMark";
 import { IconClose, IconSearch } from "../../ui/icons";
+import { useLibrarySongs } from "../hooks";
 import { useNav } from "../nav";
-import { ConnectedSongRow } from "../rows";
+import { ConnectedSongRow, SongList } from "../rows";
 import { ScreenHead } from "../Shell";
 import { useSearch } from "../searchStore";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -45,6 +47,17 @@ export function Search() {
   const input = useRef<HTMLInputElement>(null);
 
   const allLocal = useLiveQuery(() => db.songs.toArray());
+  const lib = useLibrarySongs();
+  const [popular, setPopular] = useState<{ song: Song; saves: number }[]>([]);
+  const [fresh, setFresh] = useState<Song[]>([]);
+  useEffect(() => {
+    popularSongs(8).then(setPopular, () => setPopular([]));
+    recentPublicSongs(8).then(setFresh, () => setFresh([]));
+  }, []);
+  const learning = (lib ?? []).filter((x) => x.entry.status === "learning");
+  const libIds = new Set((lib ?? []).map((x) => x.song.id));
+  const popularNew = popular.filter((p) => !libIds.has(p.song.id));
+  const freshNew = fresh.filter((x) => !libIds.has(x.id) && !popular.some((p) => p.song.id === x.id));
   const playlists = useLiveQuery(() => db.playlists.toArray());
   const nq = normalize(q);
 
@@ -158,6 +171,19 @@ export function Search() {
               </div>
             </section>
           )}
+          {learning.length > 0 && (
+            <section className="block">
+              <div className="block__head">
+                <h2 className="h2">
+                  <HeatMark heat="learning" /> Learning now
+                </h2>
+                <button className="link" onClick={() => nav.goTo("library", { name: "collection", kind: "learning" })}>
+                  Show all
+                </button>
+              </div>
+              <SongList songs={learning.slice(0, 4).map((x) => x.song)} />
+            </section>
+          )}
           <section className="block">
             <h2 className="h2">Browse by genre</h2>
             <div className="tiles">
@@ -169,6 +195,18 @@ export function Search() {
               ))}
             </div>
           </section>
+          {popularNew.length > 0 && (
+            <section className="block">
+              <h2 className="h2">Popular in Gitara</h2>
+              <SongList songs={popularNew.slice(0, 6).map((p) => p.song)} />
+            </section>
+          )}
+          {freshNew.length > 0 && (
+            <section className="block">
+              <h2 className="h2">New in Gitara</h2>
+              <SongList songs={freshNew.slice(0, 6)} />
+            </section>
+          )}
         </>
       )}
 

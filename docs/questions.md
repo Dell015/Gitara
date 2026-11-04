@@ -19,7 +19,7 @@ A: ⏳ Couldn't picture it; let's talk more (explained in chat).
 
 **37. ⭐ Lyrics: none, short cue notes only, or licensed lyrics later?** (`aboutproject.md` §10)
 Suggested: none for now; cue notes allowed; licensed lyrics later if there's money.
-A: ⏳ Let's talk more. Conflicts with the no-lyrics stance (Q102). See aboutproject.md §10 and new Q130.
+A: ✅ No lyrics at all (2026-11-04). Too much hassle and legal risk; focus on the tools. Q130 is closed with it.
 
 **41. Chord display:** sharps or flats, name style (Cmaj7 / CM7 / CΔ7), Nashville numbers (1–4–5)?
 Suggested: sharps or flats picked from the key; Cmaj7 style; Nashville numbers as an option.

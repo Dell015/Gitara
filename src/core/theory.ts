@@ -59,6 +59,22 @@ export const QUALITIES: Quality[] = [
   { suffix: "dim7", intervals: [0, 3, 6, 9] },
   { suffix: "m7b5", intervals: [0, 3, 6, 10] },
   { suffix: "aug", intervals: [0, 4, 8] },
+  // added later, after the common ones so naming a shape still prefers the simpler names
+  { suffix: "7b5", intervals: [0, 4, 6, 10] },
+  { suffix: "7#5", intervals: [0, 4, 8, 10] },
+  { suffix: "7b9", intervals: [0, 1, 4, 7, 10], optional: [7] },
+  { suffix: "7#9", intervals: [0, 3, 4, 7, 10], optional: [7] },
+  { suffix: "9sus4", intervals: [0, 2, 5, 7, 10], optional: [7] },
+  { suffix: "69", intervals: [0, 2, 4, 7, 9], optional: [7] },
+  { suffix: "add11", intervals: [0, 4, 5, 7], optional: [7] },
+  { suffix: "madd11", intervals: [0, 3, 5, 7], optional: [7] },
+  { suffix: "maj7#5", intervals: [0, 4, 8, 11] },
+  { suffix: "maj7#11", intervals: [0, 4, 6, 7, 11], optional: [7] },
+  { suffix: "11", intervals: [0, 2, 4, 5, 7, 10], optional: [7, 2, 4] },
+  { suffix: "m11", intervals: [0, 2, 3, 5, 7, 10], optional: [7, 2] },
+  { suffix: "13", intervals: [0, 2, 4, 7, 9, 10], optional: [7, 2] },
+  { suffix: "m13", intervals: [0, 2, 3, 7, 9, 10], optional: [7, 2] },
+  { suffix: "maj13", intervals: [0, 2, 4, 7, 9, 11], optional: [7, 2] },
 ];
 
 /** Other ways people write the same quality → canonical suffix. */
@@ -94,6 +110,25 @@ const ALIASES: Record<string, string> = {
   M9: "maj9",
   min9: "m9",
   min6: "m6",
+  "7-5": "7b5",
+  "7(b5)": "7b5",
+  "7+5": "7#5",
+  "7+": "7#5",
+  aug7: "7#5",
+  "7-9": "7b9",
+  "7(b9)": "7b9",
+  "7(#9)": "7#9",
+  "9sus": "9sus4",
+  "6/9": "69",
+  "6add9": "69",
+  "maj7+5": "maj7#5",
+  "maj7(#5)": "maj7#5",
+  "maj7(#11)": "maj7#11",
+  "M7#11": "maj7#11",
+  "m(add11)": "madd11",
+  "min11": "m11",
+  "min13": "m13",
+  "M13": "maj13",
 };
 
 const BY_SUFFIX = new Map(QUALITIES.map((q) => [q.suffix, q]));

@@ -17,6 +17,7 @@ export type Route =
   | { name: "collection"; kind: "liked" | "learning" | "canplay" }
   | { name: "version"; id: string; play?: boolean; fromQueue?: boolean }
   | { name: "tuner" }
+  | { name: "chords" }
   | { name: "user"; id: string }
   | { name: "profile" }
   | { name: "admin" }

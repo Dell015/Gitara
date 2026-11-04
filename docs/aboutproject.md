@@ -43,7 +43,7 @@ Automatic tagging was later dropped (see Decision log).
 4. `[DECIDED]` Be different, not a copy of Ultimate Guitar, Songsterr, GarageBand or BandLab.
 5. `[DECIDED]` Users make their own versions; the community decides what's accurate by voting.
 6. `[DECIDED]` Guitar first. Other instruments only after the guitar side is complete.
-7. `[PROPOSED]` Respect copyright: never host original recordings. Lyrics are `[OPEN]` because you want them (§5.7, §10).
+7. `[PROPOSED]` Respect copyright: never host original recordings. Lyrics: `[DECIDED]` none (see Decision log, 2026-11-04).
 8. `[PROPOSED]` Never take away something that was free, and never paywall sharing.
 
 ## 3. Users `[DECIDED]`
@@ -143,7 +143,7 @@ Two ways to enter a chord:
 - `[PROPOSED]` Chord diagrams for every chord in the version.
 - `[LATER]` Tabs for riffs, intros and solos (the lead parts Jam mode needs). You said later.
 - `[DECIDED]` **Strumming patterns** shown as arrows (D D U U D U) per section, and you can tap to **hear** how the pattern sounds.
-- `[OPEN]` **Lyrics (Q37, let's talk).** You want lyrics and chords together, like Ultimate Guitar. That's the biggest legal question in the project; see §10. Until we decide, nothing stores song lyrics. Short cue notes ("after the drum fill") are fine either way.
+- `[DECIDED]` **No lyrics (Q37, decided 2026-11-04).** Gitara stores and shows no song lyrics, public or private. Charts are chords, sections and short cue notes. This overrides the old "lyrics and chords like Ultimate Guitar" wish. (Old note follows.)  You want lyrics and chords together, like Ultimate Guitar. That's the biggest legal question in the project; see §10. Until we decide, nothing stores song lyrics. Short cue notes ("after the drum fill") are fine either way.
 - `[OPEN]` (Q41, later) Display options: sharps or flats, chord-name style (Cmaj7 / CM7), Nashville numbers. Left-handed mode is a yes `[DECIDED]`.
 
 ### 5.8 Practice tools `[DECIDED]`
@@ -477,6 +477,11 @@ Sources: en.wikipedia.org/wiki/Ultimate_Guitar · ultimate-guitar.com/article/bl
 - **Guest account:** an account created silently, without sign-up, that can later be upgraded to a real one.
 
 ## 12. Decision log
+
+### 2026-11-04
+
+- **No lyrics, ever (for now).** After weighing licensed providers (quote-only pricing, out of reach for a free app), user-typed lyrics (the app would still host copyrighted text) and private notes (extra work), the owner chose to drop lyrics entirely and focus on the tools. Charts stay chords, sections and cue notes. A "Find lyrics" search shortcut was discussed and also dropped. Auto-filling charts from YouTube links was rejected (YouTube terms). Chord detection from audio the user owns is a possible later tool, not scheduled.
+- **Version counts on song rows:** every song row shows "N versions" or "No chart yet" under the title (phone and desktop).
 
 ### 2026-11-03
 

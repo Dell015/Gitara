@@ -13,6 +13,7 @@ import { OverlayProvider, useOverlays } from "./overlays";
 import { AddSong } from "./screens/AddSong";
 import { ArtistScreen } from "./screens/Artist";
 import { Browse } from "./screens/Browse";
+import { Chords } from "./screens/Chords";
 import { Collection } from "./screens/Collection";
 import { Home } from "./screens/Home";
 import { Library } from "./screens/Library";
@@ -123,6 +124,8 @@ function Screen({ route }: { route: Route }) {
       return <Legal page={route.page} />;
     case "tuner":
       return <Tuner />;
+    case "chords":
+      return <Chords />;
     case "metronome":
       return <Metronome />;
     case "jam":

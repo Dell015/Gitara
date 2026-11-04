@@ -227,3 +227,23 @@ export function voicingFromFrets(frets: number[], fingers?: number[]): Voicing {
     hardness: Math.min(10, (maxF - minF) + fs.length),
   };
 }
+
+// ---------------------------------------------------------------- telling shapes apart
+
+export type ShapeKind = "open" | "closed" | "barre" | "high";
+
+/** How a shape is played, so a long list can be shown in groups a player recognises. */
+export const SHAPE_KINDS: { id: ShapeKind; label: string; hint: string }[] = [
+  { id: "open", label: "Open shapes", hint: "Uses open strings, near the nut" },
+  { id: "closed", label: "Moveable shapes", hint: "No open strings, so you can slide it" },
+  { id: "barre", label: "Barre chords", hint: "One finger across the neck" },
+  { id: "high", label: "Higher up the neck", hint: "From the 5th fret up" },
+];
+
+export function shapeKind(v: Pick<Voicing, "frets" | "barre">): ShapeKind {
+  const fretted = v.frets.filter((f) => f > 0);
+  const minF = fretted.length ? Math.min(...fretted) : 0;
+  if (v.barre) return "barre";
+  if (minF >= 5) return "high";
+  return v.frets.some((f) => f === 0) ? "open" : "closed";
+}

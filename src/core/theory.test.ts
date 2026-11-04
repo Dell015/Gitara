@@ -3,7 +3,7 @@ import { computeDifficulty, contentHash, formatBars, parseBars } from "./chart";
 import { GUITAR_TUNINGS } from "./instrument";
 import type { VersionContent } from "./model";
 import { findVoicings } from "./shapes";
-import { accidentalForKey, identifyChord, normalizeChordName, parseChord, suggestKey, transposeChord, transposeKey } from "./theory";
+import { accidentalForKey, chordTones, identifyChord, normalizeChordName, parseChord, suggestKey, transposeChord, transposeKey } from "./theory";
 
 const STD = [40, 45, 50, 55, 59, 64];
 const DROP_D = GUITAR_TUNINGS.find((t) => t.id === "drop-d")!.tuning;
@@ -115,5 +115,30 @@ describe("system-made facts", () => {
   it("same chords give the same fingerprint", () => {
     expect(contentHash(content("Am F C G"))).toBe(contentHash(content("Am  F C  G")));
     expect(contentHash(content("Am F C G"))).not.toBe(contentHash(content("Am F G C")));
+  });
+});
+
+describe("extended chord types", () => {
+  it("reads the added names and their aliases", () => {
+    for (const n of ["C7b5", "C7#5", "Caug7", "C7b9", "C7#9", "C9sus4", "C69", "C6/9".replace("/", ""), "Cadd11", "Cmadd11", "Cmaj7#5", "Cmaj7#11", "C11", "Cm11", "C13", "Cm13", "Cmaj13", "Bb13", "F#m11", "Ab7b9"]) {
+      expect(parseChord(n), n).not.toBeNull();
+    }
+    expect(parseChord("C7+5")?.quality.suffix).toBe("7#5");
+    expect(parseChord("Cmin13")?.quality.suffix).toBe("m13");
+  });
+
+  it("builds the right notes", () => {
+    expect(chordTones(parseChord("C13")!).sort((a, b) => a - b)).toEqual([0, 2, 4, 7, 9, 10]);
+    // E G# B D F
+    expect(chordTones(parseChord("E7b9")!).sort((a, b) => a - b)).toEqual([2, 4, 5, 8, 11]);
+  });
+
+  it("still names the common open shapes the same way", () => {
+    const std = [40, 45, 50, 55, 59, 64];
+    expect(identifyChord([-1, 3, 2, 0, 1, 0], std)).toBe("C");
+    expect(identifyChord([0, 2, 2, 1, 0, 0], std)).toBe("E");
+    expect(identifyChord([-1, 0, 2, 2, 2, 0], std)).toBe("A");
+    expect(identifyChord([-1, 0, 2, 0, 2, 0], std)).toBe("A7");
+    expect(identifyChord([3, 2, 0, 0, 0, 1], std)).toBe("G7");
   });
 });
