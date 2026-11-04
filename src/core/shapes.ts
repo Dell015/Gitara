@@ -106,6 +106,81 @@ function bookShapes(name: string): Voicing[] {
 const E_FORMS: Record<string, number[]> = { "": [0, 2, 2, 1, 0, 0], m: [0, 2, 2, 0, 0, 0], "7": [0, 2, 0, 1, 0, 0], m7: [0, 2, 0, 0, 0, 0], sus4: [0, 2, 2, 2, 0, 0], "5": [0, 2, 2, -1, -1, -1] };
 const A_FORMS: Record<string, number[]> = { "": [-1, 0, 2, 2, 2, 0], m: [-1, 0, 2, 2, 1, 0], "7": [-1, 0, 2, 0, 2, 0], m7: [-1, 0, 2, 0, 1, 0], maj7: [-1, 0, 2, 1, 2, 0], sus2: [-1, 0, 2, 2, 0, 0], sus4: [-1, 0, 2, 2, 3, 0], "5": [-1, 0, 2, 2, -1, -1] };
 
+// ---------------------------------------------------------------- moveable shapes (barre and power chords)
+
+/**
+ * A moveable shape is an open chord whose notes are all fretted, so it can slide up the neck: add the
+ * same number to every fretted string and the chord moves up by that many semitones. `base` is the
+ * open chord it comes from (as a note, C = 0); a root of `base` plays the open shape itself.
+ * All of this is for standard tuning.
+ */
+export interface ShapeFamily {
+  id: string;
+  group: "barre" | "power";
+  label: string;
+  hint: string;
+  /** The note of the open chord this shape comes from (E-shape: E = 4). */
+  base: number;
+  /** How far up the neck to draw the shape in the overview, so the diagram shows a position number. */
+  ref: number;
+  /** Frets (thickest string first, -1 muted) of the open version. Keys are chord suffixes; "5~Two notes" is suffix "5" with a label. */
+  forms: Record<string, number[]>;
+  labels?: Record<string, string>;
+}
+
+const E_EXTRA: Record<string, number[]> = {
+  maj7: [0, 2, 1, 1, 0, 0], "6": [0, 2, 2, 1, 2, 0], m6: [0, 2, 2, 0, 2, 0], sus2: [0, 2, 4, 4, 0, 0], "7sus4": [0, 2, 0, 2, 0, 0],
+  "9": [0, 2, 0, 1, 0, 2], m9: [0, 2, 0, 0, 0, 2], add9: [0, 2, 2, 1, 0, 2], aug: [0, 3, 2, 1, 1, 0],
+};
+const A_EXTRA: Record<string, number[]> = {
+  "6": [-1, 0, 2, 2, 2, 2], m6: [-1, 0, 2, 2, 1, 2], "7sus4": [-1, 0, 2, 0, 3, 0], "9": [-1, 0, 2, 4, 2, 3], add9: [-1, 0, 2, 4, 2, 0], aug: [-1, 0, 3, 2, 2, 1],
+};
+
+export const SHAPE_FAMILIES: ShapeFamily[] = [
+  { id: "E", group: "barre", label: "E-shape", hint: "Root on the thickest string. The most used barre shape: the fret you barre is the key (fret 1 = F).", base: 4, ref: 1, forms: { ...E_FORMS, ...E_EXTRA } },
+  { id: "A", group: "barre", label: "A-shape", hint: "Root on the 5th string. Barre fret 2 and you have B.", base: 9, ref: 2, forms: { ...A_FORMS, ...A_EXTRA } },
+  {
+    id: "D",
+    group: "barre",
+    label: "D-shape",
+    hint: "Root on the 4th string, four strings only. A small, bright shape for higher up the neck.",
+    base: 2,
+    ref: 5,
+    forms: { "": [-1, -1, 0, 2, 3, 2], m: [-1, -1, 0, 2, 3, 1], "7": [-1, -1, 0, 2, 1, 2], m7: [-1, -1, 0, 2, 1, 1], maj7: [-1, -1, 0, 2, 2, 2], "6": [-1, -1, 0, 2, 0, 2], sus2: [-1, -1, 0, 2, 3, 0], sus4: [-1, -1, 0, 2, 3, 3], dim: [-1, -1, 0, 1, 3, 1], dim7: [-1, -1, 0, 1, 0, 1], aug: [-1, -1, 0, 3, 3, 2] },
+  },
+  { id: "C", group: "barre", label: "C-shape", hint: "Root on the 5th string. Wider than the A-shape, so it sounds fuller but takes a stretch.", base: 0, ref: 2, forms: { "": [-1, 3, 2, 0, 1, 0], "7": [-1, 3, 2, 3, 1, 0], maj7: [-1, 3, 2, 0, 0, 0], "6": [-1, 3, 2, 2, 1, 0], add9: [-1, 3, 2, 0, 3, 0], sus2: [-1, 3, 0, 0, 3, 3], sus4: [-1, 3, 3, 0, 1, 1] } },
+  { id: "G", group: "barre", label: "G-shape", hint: "Root on the thickest string. The biggest stretch of the five, used for open-sounding chords.", base: 7, ref: 2, forms: { "": [3, 2, 0, 0, 0, 3], "7": [3, 2, 0, 0, 0, 1], "6": [3, 2, 0, 0, 0, 0], maj7: [3, 2, 0, 0, 0, 2], sus4: [3, 3, 0, 0, 1, 3] } },
+  { id: "P6", group: "power", label: "Power chord, root on the 6th string", hint: "The rock and punk workhorse: root and fifth (and the root again an octave up). No third, so neither major nor minor.", base: 4, ref: 3, forms: { "5": [0, 2, 2, -1, -1, -1], "5~Two notes": [0, 2, -1, -1, -1, -1] }, labels: { "5": "Root, fifth, octave", "5~Two notes": "Root and fifth" } },
+  { id: "P5", group: "power", label: "Power chord, root on the 5th string", hint: "The same chord one string lower, for when you want a higher, tighter sound.", base: 9, ref: 3, forms: { "5": [-1, 0, 2, 2, -1, -1], "5~Two notes": [-1, 0, 2, -1, -1, -1] }, labels: { "5": "Root, fifth, octave", "5~Two notes": "Root and fifth" } },
+  { id: "P4", group: "power", label: "Power chord, root on the 4th string", hint: "Highest of the three, good for leads and for thinner, brighter riffs.", base: 2, ref: 3, forms: { "5": [-1, -1, 0, 2, 3, -1], "5~Two notes": [-1, -1, 0, 2, -1, -1] }, labels: { "5": "Root, fifth, octave", "5~Two notes": "Root and fifth" } },
+];
+
+const suffixOf = (key: string) => key.split("~")[0]!;
+export const formSuffix = suffixOf;
+
+/** The shape's types in the order a player learns them. */
+export function familyForms(f: ShapeFamily): string[] {
+  const order = ["", "m", "7", "m7", "maj7", "6", "m6", "9", "m9", "add9", "sus2", "sus4", "7sus4", "dim", "dim7", "aug", "5", "5~Two notes"];
+  return order.filter((k) => k in f.forms);
+}
+
+/** What a type is called on a card: "Major", "Minor", "7th", or the family's own label. */
+export function formLabel(f: ShapeFamily, key: string): string {
+  if (f.labels?.[key]) return f.labels[key]!;
+  const s = suffixOf(key);
+  return s === "" ? "Major" : s === "m" ? "Minor" : s;
+}
+
+/** The shape slid so its chord is `root` (a note, C = 0). `shift` 0 is the open shape. Null if it doesn't fit on the neck. */
+export function moveShape(f: ShapeFamily, key: string, root: number, shiftOverride?: number): { voicing: Voicing; shift: number } | null {
+  const form = f.forms[key];
+  if (!form) return null;
+  const shift = shiftOverride ?? mod12(root - f.base);
+  const frets = form.map((x) => (x < 0 ? -1 : x + shift));
+  if (Math.max(...frets) > 15) return null;
+  return { voicing: withFingers(frets), shift };
+}
+
 function barreForms(chord: NonNullable<ReturnType<typeof parseChord>>, tuning: readonly number[]): Voicing[] {
   if (chord.bass !== undefined) return [];
   const out: Voicing[] = [];

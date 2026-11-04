@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { GUITAR_TUNINGS } from "../../core/instrument";
-import { findVoicings, type Voicing } from "../../core/shapes";
+import { familyForms, findVoicings, formLabel, formSuffix, moveShape, SHAPE_FAMILIES, type ShapeFamily, type Voicing } from "../../core/shapes";
 import { chordName, noteName, type Accidental } from "../../core/theory";
 import { Segmented, TopBar } from "../../ui/bits";
 import { ChordDiagram } from "../../ui/ChordDiagram";
@@ -99,7 +99,7 @@ const TYPES: { label: string; items: { suffix: string; chip: string; long: strin
 ];
 const LONG = new Map(TYPES.flatMap((g) => g.items.map((i) => [i.suffix, i.long] as const)));
 
-type Mode = "starter" | "key" | "type";
+type Mode = "starter" | "key" | "type" | "barre";
 
 export function Chords() {
   const nav = useNav();
@@ -109,6 +109,7 @@ export function Chords() {
   const [root, setRoot] = useState(0);
   const [suffix, setSuffix] = useState("");
   const [tuningId, setTuningId] = useState("standard");
+  const [picked, setPicked] = useState<{ family: string; key: string } | null>(null);
 
   const tuning = (GUITAR_TUNINGS.find((t) => t.id === tuningId) ?? GUITAR_TUNINGS[0]!).tuning;
   const acc: Accidental = prefs.accidentals === "flat" ? "flat" : "sharp";
@@ -133,6 +134,7 @@ export function Chords() {
               { id: "starter", label: "Starter" },
               { id: "key", label: "By key" },
               { id: "type", label: "By type" },
+              { id: "barre", label: "Barre & power" },
             ]}
           />
           <label className="chordlab__tuning">
@@ -201,6 +203,19 @@ export function Chords() {
           </>
         )}
 
+        {mode === "barre" && (
+          <ShapesView
+            picked={picked}
+            setPicked={setPicked}
+            tuning={tuning}
+            standard={tuningId === "standard"}
+            acc={acc}
+            left={prefs.leftHanded}
+            onOpenChord={openChord}
+            onTuning={() => setTuningId("standard")}
+          />
+        )}
+
         <div className="stack">
           <button className="btn btn--secondary" onClick={() => open({ kind: "fretboard", tuning, capo: 0, onDone: () => undefined })}>
             Place your fingers instead
@@ -215,23 +230,26 @@ export function Chords() {
  * One chord in the chart: its name over its box, showing the easiest shape. The shape is worked out
  * a moment after the card appears (and remembered), so a long chart never freezes the screen.
  */
-function ChordCard({ name, tuning, left, onOpen }: { name: string; tuning: readonly number[]; left: boolean; onOpen: () => void }) {
-  const [shape, setShape] = useState<Voicing | null | undefined>(undefined);
+function ChordCard({ name, tuning, left, onOpen, shape: fixed, sub }: { name: string; tuning: readonly number[]; left: boolean; onOpen: () => void; shape?: Voicing; sub?: string }) {
+  const [found, setFound] = useState<Voicing | null | undefined>(undefined);
+  const shape = fixed ?? found;
   const key = useMemo(() => `${name}|${tuning.join(",")}`, [name, tuning]);
   useEffect(() => {
+    if (fixed) return;
     let live = true;
     const t = window.setTimeout(() => {
-      if (live) setShape(findVoicings(name, tuning, 1)[0] ?? null);
+      if (live) setFound(findVoicings(name, tuning, 1)[0] ?? null);
     }, 0);
     return () => {
       live = false;
       window.clearTimeout(t);
     };
-  }, [key, name, tuning]);
+  }, [key, name, tuning, fixed]);
 
   return (
     <button className="chordcard" onClick={onOpen} aria-label={`${name}: see all versions`}>
       <span className="chordcard__name chordname">{name}</span>
+      {sub && <span className="chordcard__sub num">{sub}</span>}
       {shape ? (
         <ChordDiagram voicing={shape} name={name} leftHanded={left} size={104} />
       ) : (
@@ -240,5 +258,114 @@ function ChordCard({ name, tuning, left, onOpen }: { name: string; tuning: reado
         </span>
       )}
     </button>
+  );
+}
+
+/**
+ * Barre and power chords: shapes you slide up the neck. First every shape on one page (grouped by
+ * family), then tap one to see it in all 12 keys.
+ */
+function ShapesView({
+  picked,
+  setPicked,
+  tuning,
+  standard,
+  acc,
+  left,
+  onOpenChord,
+  onTuning,
+}: {
+  picked: { family: string; key: string } | null;
+  setPicked: (p: { family: string; key: string } | null) => void;
+  tuning: readonly number[];
+  standard: boolean;
+  acc: Accidental;
+  left: boolean;
+  onOpenChord: (name: string) => void;
+  onTuning: () => void;
+}) {
+  if (!standard) {
+    return (
+      <section className="chordlab__section">
+        <h2 className="h2">Barre and power chords</h2>
+        <p className="muted">These shapes are written for standard tuning, where sliding a shape changes the key the same way on every string.</p>
+        <button className="btn btn--secondary" onClick={onTuning}>
+          Switch to standard tuning
+        </button>
+      </section>
+    );
+  }
+  const fam = picked ? SHAPE_FAMILIES.find((f) => f.id === picked.family) : undefined;
+  if (picked && fam) {
+    const suffix = formSuffix(picked.key);
+    const cards = ROOTS.map((r) => ({ r, m: moveShape(fam, picked.key, r) }))
+      .filter((x) => x.m)
+      .sort((a, b) => a.m!.shift - b.m!.shift);
+    return (
+      <>
+        <section className="chordlab__section">
+          <button className="link chordlab__back" onClick={() => setPicked(null)}>
+            All shapes
+          </button>
+          <div className="chordlab__sechead">
+            <h2 className="h2">
+              {fam.label} · {formLabel(fam, picked.key)}
+            </h2>
+          </div>
+          <p className="muted">{fam.hint}</p>
+          <div className="chips chips--wrap" role="group" aria-label="Chord type">
+            {familyForms(fam).map((k) => (
+              <button key={k} className="chip" aria-pressed={picked.key === k} onClick={() => setPicked({ family: fam.id, key: k })}>
+                {formLabel(fam, k)}
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="chordlab__section">
+          <div className="chordlab__grid">
+            {cards.map(({ r, m }) => {
+              const name = chordName({ root: r, quality: { suffix, intervals: [] } }, acc);
+              return <ChordCard key={`${fam.id}|${picked.key}|${r}`} name={name} tuning={tuning} left={left} shape={m!.voicing} sub={m!.shift === 0 ? "Open" : `Fret ${m!.shift}`} onOpen={() => onOpenChord(name)} />;
+            })}
+          </div>
+        </section>
+      </>
+    );
+  }
+  const groups: { title: string; intro: string; families: ShapeFamily[] }[] = [
+    { title: "Barre chords", intro: "One finger lies across the neck like a movable nut. Learn a shape once, slide it up, and it plays a different chord at every fret. The five shapes below are the five open chords C, A, G, E and D turned into sliding shapes.", families: SHAPE_FAMILIES.filter((f) => f.group === "barre") },
+    { title: "Power chords", intro: "Two or three notes: the root and its fifth. Loud, simple and easy to slide, the basis of rock and punk.", families: SHAPE_FAMILIES.filter((f) => f.group === "power") },
+  ];
+  return (
+    <>
+      <p className="muted">Every shape on one page. Tap a shape to see it in all 12 keys.</p>
+      {groups.map((g) => (
+        <div key={g.title} className="chordlab__group">
+          <div className="chordlab__sechead">
+            <h2 className="h1 chordlab__grouptitle">{g.title}</h2>
+          </div>
+          <p className="muted">{g.intro}</p>
+          {g.families.map((f) => (
+            <section key={f.id} className="chordlab__section">
+              <div className="chordlab__sechead">
+                <h3 className="h2">{f.label}</h3>
+              </div>
+              <p className="muted chordlab__hint">{f.hint}</p>
+              <div className="chordlab__grid">
+                {familyForms(f).map((k) => {
+                  const m = moveShape(f, k, (f.base + f.ref) % 12, f.ref);
+                  return (
+                    <button key={k} className="chordcard" onClick={() => setPicked({ family: f.id, key: k })} aria-label={`${f.label}, ${formLabel(f, k)}: see it in every key`}>
+                      <span className="chordcard__name">{formLabel(f, k)}</span>
+                      {m && <ChordDiagram voicing={m.voicing} name={formLabel(f, k)} leftHanded={left} size={104} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      ))}
+    </>
   );
 }

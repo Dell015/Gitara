@@ -3918,3 +3918,28 @@ svg.icon:not([stroke]) {
     transition: none;
   }
 }
+
+.chordcard__sub {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  margin-top: -2px;
+}
+
+.chordlab__group {
+  display: grid;
+  gap: var(--space-4);
+}
+.chordlab__grouptitle {
+  margin: 0;
+}
+.chordlab__hint {
+  margin: 0;
+  font-size: 0.875rem;
+}
+.chordlab__back {
+  justify-self: start;
+}
+.chordlab__back::before {
+  content: "\2190";
+  margin-right: 0.4em;
+}

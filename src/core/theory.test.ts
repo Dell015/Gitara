@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeDifficulty, contentHash, formatBars, parseBars } from "./chart";
 import { GUITAR_TUNINGS } from "./instrument";
 import type { VersionContent } from "./model";
-import { findVoicings } from "./shapes";
+import { familyForms, findVoicings, formSuffix, moveShape, SHAPE_FAMILIES } from "./shapes";
 import { accidentalForKey, chordTones, identifyChord, normalizeChordName, parseChord, suggestKey, transposeChord, transposeKey } from "./theory";
 
 const STD = [40, 45, 50, 55, 59, 64];
@@ -140,5 +140,53 @@ describe("extended chord types", () => {
     expect(identifyChord([-1, 0, 2, 2, 2, 0], std)).toBe("A");
     expect(identifyChord([-1, 0, 2, 0, 2, 0], std)).toBe("A7");
     expect(identifyChord([3, 2, 0, 0, 0, 1], std)).toBe("G7");
+  });
+});
+
+describe("moveable shapes (barre and power chords)", () => {
+  const fam = (id: string) => SHAPE_FAMILIES.find((f) => f.id === id)!;
+
+  it("slides the E and A shapes to the right fret", () => {
+    expect(moveShape(fam("E"), "", 5)).toMatchObject({ shift: 1, voicing: { frets: [1, 3, 3, 2, 1, 1] } }); // F
+    expect(moveShape(fam("E"), "m", 10)?.voicing.frets).toEqual([6, 8, 8, 6, 6, 6]); // Bbm
+    expect(moveShape(fam("A"), "", 11)).toMatchObject({ shift: 2, voicing: { frets: [-1, 2, 4, 4, 4, 2] } }); // B
+    expect(moveShape(fam("E"), "7", 7)?.voicing.frets).toEqual([3, 5, 3, 4, 3, 3]); // G7
+  });
+
+  it("plays the open chord when the root is the shape's own", () => {
+    expect(moveShape(fam("E"), "", 4)).toMatchObject({ shift: 0, voicing: { frets: [0, 2, 2, 1, 0, 0] } });
+    expect(moveShape(fam("D"), "", 2)?.voicing.frets).toEqual([-1, -1, 0, 2, 3, 2]);
+    expect(moveShape(fam("C"), "", 0)?.voicing.frets).toEqual([-1, 3, 2, 0, 1, 0]);
+    expect(moveShape(fam("G"), "", 7)?.voicing.frets).toEqual([3, 2, 0, 0, 0, 3]);
+  });
+
+  it("makes power chords on three strings", () => {
+    expect(moveShape(fam("P6"), "5", 7)?.voicing.frets).toEqual([3, 5, 5, -1, -1, -1]); // G5
+    expect(moveShape(fam("P5"), "5", 0)?.voicing.frets).toEqual([-1, 3, 5, 5, -1, -1]); // C5
+    expect(moveShape(fam("P4"), "5~Two notes", 5)?.voicing.frets).toEqual([-1, -1, 3, 5, -1, -1]); // F5
+  });
+
+  it("every shape, in every key, is exactly its chord's notes and nothing else", () => {
+    let checked = 0;
+    for (const f of SHAPE_FAMILIES) {
+      for (const key of familyForms(f)) {
+        const q = parseChord("C" + formSuffix(key))!.quality;
+        for (let root = 0; root < 12; root++) {
+          const m = moveShape(f, key, root);
+          if (!m) continue;
+          const pcs = new Set(m.voicing.frets.map((fr, i) => (fr < 0 ? -1 : (STD[i]! + fr) % 12)).filter((x) => x >= 0));
+          const allowed = new Set(q.intervals.map((iv) => (root + iv) % 12));
+          for (const pc of pcs) expect(allowed.has(pc), `${f.id} ${key} root ${root}: stray note ${pc}`).toBe(true);
+          for (const iv of q.intervals) if (!(q.optional ?? []).includes(iv)) expect(pcs.has((root + iv) % 12), `${f.id} ${key} root ${root}: missing ${iv}`).toBe(true);
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(400);
+  });
+
+  it("lists every family with types", () => {
+    for (const f of SHAPE_FAMILIES) expect(familyForms(f).length, f.id).toBeGreaterThan(1);
+    expect(SHAPE_FAMILIES.map((f) => f.id)).toEqual(["E", "A", "D", "C", "G", "P6", "P5", "P4"]);
   });
 });
