@@ -8,9 +8,10 @@ import { db } from "../data/local-db";
 import { Art } from "../ui/Art";
 import { warmthFor } from "../ui/artwork";
 import { HeatMark } from "../ui/HeatMark";
-import { IconBack, IconClose, IconPerson, IconSearch } from "../ui/icons";
+import { IconBack, IconClose, IconJam, IconPerson, IconPractice, IconSearch, IconTuner } from "../ui/icons";
 import { useNav } from "./nav";
 import { useOverlays } from "./overlays";
+import { useQueue } from "./queue";
 import { useSearch } from "./searchStore";
 
 export function DesktopBar() {
@@ -69,9 +70,10 @@ export function DesktopBar() {
   );
 }
 
-/** Right panel on wide screens: what you're working on. Becomes "Now playing" once play-along exists. */
+/** Right panel on wide screens: tools one click away, what's up next, what you're learning. */
 export function RightPanel() {
   const nav = useNav();
+  const items = useQueue();
   const [hidden, setHidden] = useState(() => {
     try {
       return localStorage.getItem("gitara.rightPanel") === "hidden";
@@ -79,14 +81,11 @@ export function RightPanel() {
       return false;
     }
   });
+  const queued = useLiveQuery(async () => (await db.songs.bulkGet(items.slice(0, 6).map((i) => i.songId))).map((s, k) => ({ item: items[k]!, song: s })), [items]);
   const rows = useLiveQuery(async () => {
-    const entries = (await db.library.toArray()).filter((e) => e.status === "learning" || e.status === "planning");
+    const entries = (await db.library.toArray()).filter((e) => e.status === "learning");
     const songs = await db.songs.bulkGet(entries.map((e) => e.songId));
-    return entries
-      .map((e, i) => ({ e, s: songs[i] }))
-      .filter((x) => !!x.s)
-      .sort((a, b) => (a.e.status === b.e.status ? b.e.updatedAt.localeCompare(a.e.updatedAt) : a.e.status === "learning" ? -1 : 1))
-      .slice(0, 12);
+    return entries.map((e, i) => ({ e, s: songs[i] })).filter((x) => !!x.s).slice(0, 6);
   });
   const toggle = (h: boolean) => {
     setHidden(h);
@@ -103,13 +102,46 @@ export function RightPanel() {
       </button>
     );
   return (
-    <aside className="rpanel" aria-label="Your practice">
+    <aside className="rpanel" aria-label="Practice">
       <div className="rpanel__head">
-        <h2 className="rpanel__title">Your practice</h2>
+        <h2 className="rpanel__title">Practice</h2>
         <button className="iconbtn iconbtn--plain" aria-label="Hide panel" onClick={() => toggle(true)}>
           <IconClose />
         </button>
       </div>
+      <div className="rtools">
+        <button className="rtool" onClick={() => nav.push({ name: "tuner" })}>
+          <IconTuner />
+          <span>Tuner</span>
+        </button>
+        <button className="rtool" onClick={() => nav.push({ name: "metronome" })}>
+          <IconPractice />
+          <span>Metronome</span>
+        </button>
+        <button className="rtool" onClick={() => nav.push({ name: "track" })}>
+          <IconJam />
+          <span>Beat maker</span>
+        </button>
+      </div>
+      <p className="rpanel__sub">Up next</p>
+      {items.length ? (
+        <ul className="list">
+          {(queued ?? []).map(({ item, song }) => (
+            <li key={item.key}>
+              <button className="irow" onClick={() => song && nav.push({ name: "song", id: song.id })}>
+                {song && <Art seed={song.id} className="mark" />}
+                <span className="irow__main">
+                  <span className="irow__title">{song?.title ?? "Song"}</span>
+                  <span className="irow__sub">{song?.artist}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted">Swipe right on a song, or use its menu, to queue it.</p>
+      )}
+      <p className="rpanel__sub">Learning now</p>
       {rows && rows.length > 0 ? (
         <ul className="list">
           {rows.map(({ e, s }) => (
@@ -120,15 +152,14 @@ export function RightPanel() {
                   <span className="irow__title">{s!.title}</span>
                   <span className="irow__sub">{s!.artist}</span>
                 </span>
-                {e.status && <HeatMark heat={e.status} />}
+                <HeatMark heat="learning" />
               </button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="muted">Songs you're learning or planning to learn show up here. Set a status from any song's menu.</p>
+        <p className="muted">Set a song to Learning and it shows up here.</p>
       )}
-      <p className="rpanel__note">When play-along arrives, this panel shows the chord chart following the music.</p>
     </aside>
   );
 }

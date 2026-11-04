@@ -3047,3 +3047,248 @@ svg.icon:not([stroke]) {
     grid-template-columns: 0 1fr auto;
   }
 }
+.trainer {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+/* ============================================================ Home (with practice folded in) */
+.tabs {
+  grid-template-columns: repeat(4, 1fr);
+}
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.home__main,
+.home__side {
+  display: contents;
+}
+/* phone order: Continue, then the tools and Up next, then the songbook and the rest */
+.home__main > .continue,
+.home__main > .empty {
+  order: 0;
+}
+.home__side > .block {
+  order: 1;
+}
+.home__main > .block {
+  order: 2;
+}
+.continue--big {
+  margin-top: 72px;
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  cursor: default;
+}
+.continue--big .continue__text {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+.continue--big .btn--big {
+  flex: none;
+}
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.shortcut {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-m);
+  background: var(--ink-1);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-hover) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.shortcut .mark {
+  grid-row: span 2;
+  width: 44px;
+  height: 44px;
+}
+.shortcut__title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shortcut__sub {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+.shortcut:active {
+  transform: scale(0.98);
+}
+@media (hover: hover) {
+  .shortcut:hover {
+    background: var(--ink-2);
+  }
+}
+.mark--icon {
+  display: grid;
+  place-items: center;
+  background: var(--ink-3);
+  color: var(--text);
+}
+
+/* right panel tools */
+.rtools {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-1);
+}
+.rtool {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: var(--space-3) var(--space-1);
+  border: 0;
+  border-radius: var(--radius-m);
+  background: var(--ink-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur-hover) var(--ease-out);
+}
+.rtool .icon {
+  color: var(--amber);
+}
+@media (hover: hover) {
+  .rtool:hover {
+    background: var(--ink-3);
+  }
+}
+.rpanel__sub {
+  margin: var(--space-2) 0 0;
+  padding: 0 var(--space-2);
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+@media (min-width: 900px) {
+  .tabs {
+    grid-template-columns: none;
+  }
+  .continue--big {
+    margin-top: 64px;
+    max-width: none;
+  }
+  .shortcuts {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+  .quick {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  .continue--big .btn--big {
+    flex-basis: auto;
+  }
+
+  /* version page: chart on the left, tools and chord boxes in a column that stays in view */
+  .vlayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--space-5);
+    align-items: start;
+  }
+  .vside {
+    order: 2;
+    position: sticky;
+    top: 84px;
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-m);
+    background: var(--ink-2);
+    max-height: calc(100dvh - 110px);
+    overflow-y: auto;
+  }
+  .vside .tools {
+    flex-wrap: wrap;
+  }
+  .vside .chordstrip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .vside .chordcard {
+    background: var(--ink-1);
+  }
+  .vmain {
+    display: grid;
+    gap: var(--space-5);
+  }
+}
+@media (min-width: 1280px) {
+  /* the right panel already holds the tools and Up next */
+  .app:has(.rpanel) .home {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app:has(.rpanel) .home__side {
+    display: none;
+  }
+}
+
+/* Continue card: on a phone the button gets its own line so the title has room */
+.continue--big .continue__text {
+  flex: 1 1 0;
+}
+.continue--big .btn--big {
+  flex-basis: 100%;
+}
+@media (min-width: 900px) {
+  .continue--big {
+    flex-wrap: nowrap;
+  }
+  .continue--big .btn--big {
+    flex-basis: auto;
+  }
+  .vside .chip:not([aria-pressed="true"]),
+  .vside .stepper {
+    background: var(--ink-3);
+  }
+  .vside .stepper__btn:active,
+  .vside .stepper__btn:hover {
+    background: #2a3740;
+  }
+}
+
+/* Home goes two-column only when there's room (and the right panel isn't already showing the tools) */
+@media (min-width: 1280px) {
+  .home {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: var(--space-6);
+    align-items: start;
+  }
+  .home__main,
+  .home__side {
+    display: grid;
+    gap: var(--space-6);
+    align-content: start;
+  }
+  .home__side {
+    position: sticky;
+    top: 84px;
+  }
+  .home__side .tooltiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

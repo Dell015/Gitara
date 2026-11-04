@@ -6,7 +6,7 @@ import { startSync } from "../data/sync";
 import { Art } from "../ui/Art";
 import { warmthFor } from "../ui/artwork";
 import { Chips, ItemRow, Mark } from "../ui/bits";
-import { IconHome, IconPerson, IconPin, IconPlus, IconPractice, IconSearch, IconSongs } from "../ui/icons";
+import { IconHome, IconPerson, IconPin, IconPlus, IconSearch, IconSongs } from "../ui/icons";
 import { DesktopBar, RightPanel } from "./Desktop";
 import { plural, usePlaylistCounts, useLibrarySongs } from "./hooks";
 import { NavProvider, useNav, type Route, type Tab } from "./nav";
@@ -19,7 +19,6 @@ import { Collection } from "./screens/Collection";
 import { Home } from "./screens/Home";
 import { Library } from "./screens/Library";
 import { PlaylistScreen } from "./screens/Playlist";
-import { Practice } from "./screens/Practice";
 import { Search } from "./screens/Search";
 import { SongScreen } from "./screens/Song";
 import { EditVersion } from "./screens/EditVersion";
@@ -45,7 +44,6 @@ const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: "home", label: "Home", icon: <IconHome /> },
   { id: "search", label: "Search", icon: <IconSearch /> },
   { id: "library", label: "Library", icon: <IconSongs /> },
-  { id: "practice", label: "Practice", icon: <IconPractice /> },
 ];
 
 function Frame() {
@@ -91,8 +89,6 @@ function Screen({ route }: { route: Route }) {
       return <Search />;
     case "library":
       return <Library />;
-    case "practice":
-      return <Practice />;
     case "song":
       return <SongScreen id={route.id} />;
     case "artist":

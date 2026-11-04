@@ -5,13 +5,12 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-export type Tab = "home" | "search" | "library" | "practice";
+export type Tab = "home" | "search" | "library";
 
 export type Route =
   | { name: "home" }
   | { name: "search" }
   | { name: "library" }
-  | { name: "practice" }
   | { name: "song"; id: string }
   | { name: "artist"; artist: string }
   | { name: "playlist"; id: string }
@@ -25,13 +24,17 @@ export type Route =
   | { name: "addSong"; title?: string; artist?: string; editId?: string };
 
 type Stacks = Record<Tab, Route[]>;
-const ROOTS: Stacks = { home: [{ name: "home" }], search: [{ name: "search" }], library: [{ name: "library" }], practice: [{ name: "practice" }] };
+const ROOTS: Stacks = { home: [{ name: "home" }], search: [{ name: "search" }], library: [{ name: "library" }] };
 const KEY = "gitara.nav.v1";
 
 function load(): { tab: Tab; stacks: Stacks } {
   try {
     const raw = sessionStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const s = JSON.parse(raw) as { tab: Tab; stacks: Stacks };
+      // a saved place from an older version (e.g. the removed Practice tab) starts fresh
+      if (s.tab in ROOTS && Object.keys(ROOTS).every((k) => Array.isArray(s.stacks?.[k as Tab]))) return s;
+    }
   } catch {
     /* private mode or bad data: start fresh */
   }

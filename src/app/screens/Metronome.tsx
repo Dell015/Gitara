@@ -8,6 +8,8 @@ import { Segmented, TopBar } from "../../ui/bits";
 import { IconPause, IconPlay } from "../../ui/icons";
 import { pulseLights } from "../../ui/lightShader";
 import { useNav } from "../nav";
+import { useOverlays } from "../overlays";
+import { usePrefs } from "../prefs";
 import { Stepper } from "./Version";
 
 const KEY = "gitara.metronome.v1";
@@ -15,6 +17,7 @@ const KEY = "gitara.metronome.v1";
 /** Metronome (F4). The beat shows as a lit dot, without movement: it's seen hundreds of times a minute. */
 export function Metronome() {
   const nav = useNav();
+  const { open } = useOverlays();
   const saved = (() => {
     try {
       return JSON.parse(localStorage.getItem(KEY) ?? "{}") as { bpm?: number; ts?: string; sub?: number; accent?: boolean };
@@ -67,7 +70,8 @@ export function Metronome() {
         if (b === 0) {
           bars.current++;
           // speed trainer: 5 bpm faster every 4 bars, up to 240
-          if (trainerRef.current && bars.current > 1 && (bars.current - 1) % 4 === 0) setBpm((v) => Math.min(240, v + 5));
+          const tp = trainerPrefs.current;
+          if (trainerRef.current && bars.current > 1 && (bars.current - 1) % tp.metroEvery === 0) setBpm((v) => Math.min(tp.metroTarget, v + tp.metroStep));
         }
       },
     });
@@ -76,6 +80,9 @@ export function Metronome() {
   };
   const trainerRef = useRef(trainer);
   trainerRef.current = trainer;
+  const { trainer: tprefs } = usePrefs();
+  const trainerPrefs = useRef(tprefs);
+  trainerPrefs.current = tprefs;
 
   return (
     <>
@@ -155,9 +162,14 @@ export function Metronome() {
           </div>
           <div className="field field--wide">
             <span className="field__label">Speed trainer</span>
-            <button className="chip" aria-pressed={trainer} onClick={() => setTrainer((t) => !t)}>
-              {trainer ? "On: 5 bpm faster every 4 bars" : "Off"}
-            </button>
+            <div className="chips chips--wrap">
+              <button className="chip" aria-pressed={trainer} onClick={() => setTrainer((t) => !t)}>
+                {trainer ? `On: +${tprefs.metroStep} bpm every ${tprefs.metroEvery} bars, up to ${tprefs.metroTarget}` : "Off"}
+              </button>
+              <button className="chip chip--sub" onClick={() => open({ kind: "trainer", mode: "metronome", bpm })}>
+                Settings
+              </button>
+            </div>
           </div>
           <div className="field">
             <span className="field__label">Fine tempo</span>

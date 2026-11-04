@@ -38,11 +38,17 @@ export interface PlayOptions {
   speed?: number;
   /** Speed trainer: add this much speed each time the loop comes round, up to 1. */
   speedStep?: number;
+  /** Raise the speed every this many times round (default 1). */
+  speedEvery?: number;
+  /** Stop raising at this speed (default 1 = the song's tempo). */
+  speedTarget?: number;
+  /** After this many loops at the target speed, stop by itself (0 = keep going). */
+  stopAfterTargetLoops?: number;
   /** One bar of clicks before the first strum. */
   countIn?: boolean;
   /** A click on every beat under the strums. */
   clickTrack?: boolean;
-  onLoop?: (speed: number) => void;
+  onLoop?: (speed: number, loop: number) => void;
   /** A backing track to play under the chords (each section uses its pattern). */
   track?: Track;
   /** Chord strums on or off (off = just the backing track and click). */
@@ -117,6 +123,8 @@ export function playChart(o: PlayOptions): Playback {
     passStart += bpb * pass.beatSec;
   }
   let next = 0;
+  let loops = 0;
+  let atTarget = 0;
   let stopped = false;
   const timers: number[] = [];
   const later = (when: number, fn: () => void) => timers.push(window.setTimeout(() => !stopped && fn(), Math.max(0, (when - ctx.currentTime) * 1000)));
@@ -141,11 +149,21 @@ export function playChart(o: PlayOptions): Playback {
         }
         // next time round, a little faster if the speed trainer is on
         passStart += pass.length;
-        if (o.speedStep) speed = Math.min(1, speed + o.speedStep);
+        loops++;
+        const target = o.speedTarget ?? 1;
+        if (o.speedStep && loops % Math.max(1, o.speedEvery ?? 1) === 0) speed = Math.min(target, Math.round((speed + o.speedStep) * 1000) / 1000);
+        if (o.speedStep && o.stopAfterTargetLoops && speed >= target) {
+          atTarget++;
+          if (atTarget > o.stopAfterTargetLoops) {
+            later(passStart, () => o.onPosition(null));
+            return;
+          }
+        }
         pass = build(speed);
         next = 0;
         const sp = speed;
-        later(passStart, () => o.onLoop?.(sp));
+        const lp = loops;
+        later(passStart, () => o.onLoop?.(sp, lp));
       }
       const s = pass.steps[next]!;
       const when = passStart + s.t;

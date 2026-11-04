@@ -91,3 +91,16 @@ export async function publicTracksForSong(songId: string): Promise<Track[]> {
   await db.tracks.bulkPut(ts.filter((t) => !pending.has(t.id)));
   return ts;
 }
+
+/** "Popular in Gitara": public songs most people have saved. */
+export async function popularSongs(limit = 10): Promise<{ song: Song; saves: number }[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("popular_songs", { lim: limit });
+  if (error) throw error;
+  const rows = (data ?? []) as { song_id: string; saves: number }[];
+  if (!rows.length) return [];
+  const { data: songs } = await supabase.from("songs").select("*").in("id", rows.map((r) => r.song_id));
+  const byId = new Map((songs ?? []).map((s) => [s.id as string, rowToSong(s)]));
+  await cacheSongs([...byId.values()]);
+  return rows.flatMap((r) => (byId.get(r.song_id) ? [{ song: byId.get(r.song_id)!, saves: Number(r.saves) }] : []));
+}

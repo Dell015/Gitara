@@ -15,6 +15,7 @@ import { useNav } from "./nav";
 import { queue } from "./queue";
 import { VersionMenu } from "./VersionMenu";
 import { GroovesSheet } from "./screens/Track";
+import { TrainerSheet } from "./TrainerSheet";
 import { useOverlays, type Overlay } from "./overlays";
 
 export function OverlayHost() {
@@ -46,6 +47,7 @@ const TITLES: Record<Overlay["kind"], string> = {
   fretboard: "Build a chord",
   versionMenu: "Version options",
   grooves: "Grooves",
+  trainer: "Speed trainer",
   pickTrack: "Backing track",
 };
 
@@ -77,6 +79,8 @@ function Content({ o }: { o: Overlay }) {
       return <FretboardBuilder tuning={o.tuning} capo={o.capo} start={o.start} onDone={o.onDone} />;
     case "versionMenu":
       return <VersionMenu id={o.id} />;
+    case "trainer":
+      return <TrainerSheet mode={o.mode} bpm={o.bpm} onStart={o.onStart} />;
     case "grooves":
       return <GroovesSheet onPick={o.onPick} />;
     case "pickTrack":

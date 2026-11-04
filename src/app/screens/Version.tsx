@@ -55,6 +55,7 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
   const [loopItem, setLoopItem] = useState<number | null>(null);
   const [trainer, setTrainer] = useState(false);
   const [liveSpeed, setLiveSpeed] = useState<number | null>(null);
+  const [loopCount, setLoopCount] = useState(0);
   const [trackId, setTrackId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(`gitara.track.${id}`);
@@ -117,8 +118,11 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
     audio();
     void keepAwake().then((rel) => (releaseWake.current(), (releaseWake.current = rel)));
     const li = loopItem !== null ? order[loopItem] : undefined;
-    const startSpeed = trainer && li ? Math.min(speed, 0.7) : speed;
-    setLiveSpeed(trainer && li ? startSpeed : null);
+    const tp = prefs.trainer;
+    // the trainer loops the chosen section, or the whole song if none is chosen
+    const loop = li ? { from: li.firstPart, to: li.firstPart + li.repeat - 1 } : trainer ? { from: 0, to: Math.max(0, playOrderList.length - 1) } : undefined;
+    const startSpeed = trainer ? tp.start : speed;
+    setLiveSpeed(trainer ? startSpeed : null);
     playback.current = playChart({
       order: playOrderList,
       bpm,
@@ -128,14 +132,20 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
       shapeFor,
       nameFor: show,
       fromPart,
-      loop: li ? { from: li.firstPart, to: li.firstPart + li.repeat - 1 } : undefined,
+      loop,
       speed: startSpeed,
-      speedStep: trainer && li ? 0.05 : undefined,
+      speedStep: trainer ? tp.step : undefined,
+      speedEvery: tp.every,
+      speedTarget: tp.target,
+      stopAfterTargetLoops: trainer ? tp.thenStop : undefined,
       countIn,
       clickTrack,
       track: track ?? undefined,
       guitar,
-      onLoop: (s) => setLiveSpeed(trainer ? s : null),
+      onLoop: (s, n) => {
+        setLiveSpeed(trainer ? s : null);
+        setLoopCount(n);
+      },
       onPosition: (p) => {
         setPos(p);
         if (!p) {
@@ -148,6 +158,8 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
       onBeat: (accent) => pulseLights(accent ? 1 : 0.5),
     });
   };
+  const startRef = useRef<() => void>(() => undefined);
+  startRef.current = () => start();
   const stop = () => {
     userStopped.current = true;
     playback.current?.stop();
@@ -226,6 +238,8 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
         </div>
       </Hero>
 
+      <div className="vlayout">
+        <div className="vside">
       <div className="tools" role="toolbar" aria-label="Practice tools">
         <Stepper
           label="Speed"
@@ -268,16 +282,40 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
         <button className="chip" aria-pressed={clickTrack} onClick={() => setClickTrack((c) => !c)}>
           Click
         </button>
-        <button className="chip" aria-pressed={trainer} onClick={() => setTrainer((t) => !t)} title="Needs a looped section">
-          Speed trainer
+        <button
+          className="chip"
+          aria-pressed={trainer}
+          onClick={() =>
+            open({
+              kind: "trainer",
+              mode: "playalong",
+              bpm,
+              onStart: () => {
+                setTrainer(true);
+                setTimeout(() => startRef.current(), 40);
+              },
+            })
+          }
+        >
+          {trainer ? `Trainer ${Math.round(prefs.trainer.start * 100)}→${Math.round(prefs.trainer.target * 100)}%` : "Speed trainer"}
         </button>
+        {trainer && (
+          <button className="chip chip--sub" onClick={() => (setTrainer(false), setLiveSpeed(null))}>
+            Trainer off
+          </button>
+        )}
         {loopItem !== null && (
           <button className="chip" aria-pressed onClick={() => setLoopItem(null)}>
             Looping {order[loopItem]?.section.label || KIND_LABEL[order[loopItem]?.section.kind ?? "custom"]}
           </button>
         )}
       </div>
-      {trainer && loopItem === null && <p className="muted">Loop a section (the loop button next to its name) and the speed trainer starts slow and adds 5% each time round.</p>}
+      {trainer && (
+        <p className="muted num">
+          {loopItem === null ? "Training on the whole song. Tap the loop button by a section to train just that part." : "Training on the looped section."}
+          {pos && liveSpeed !== null ? ` Now ${Math.round(liveSpeed * 100)}% (${Math.round(bpm * liveSpeed)} bpm), loop ${loopCount + 1}.` : ""}
+        </p>
+      )}
 
       <div className="tools" role="toolbar" aria-label="View tools">
         <Stepper label="Transpose" value={transpose > 0 ? `+${transpose}` : String(transpose)} onDown={() => setTranspose((t) => Math.max(-11, t - 1))} onUp={() => setTranspose((t) => Math.min(11, t + 1))} />
@@ -328,6 +366,8 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
         </section>
       )}
 
+        </div>
+        <div className="vmain">
       <div className={`chart ${size}`}>
         {order.map((o, i) => {
           const s = o.section;
@@ -402,6 +442,8 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
       </div>
       {v.basedOn && <p className="muted">Based on another player's version. Credit stays with every copy.</p>}
       <VersionFooter v={v} />
+        </div>
+      </div>
     </>
   );
 }

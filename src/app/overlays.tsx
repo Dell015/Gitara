@@ -21,6 +21,7 @@ export type Overlay =
   | { kind: "fretboard"; tuning: readonly number[]; capo: number; start?: number[]; onDone: (name: string, v: Voicing) => void }
   | { kind: "versionMenu"; id: string }
   | { kind: "grooves"; onPick: (p: Preset) => void }
+  | { kind: "trainer"; mode: "playalong" | "metronome"; bpm?: number; onStart?: () => void }
   | { kind: "pickTrack"; songId: string; current?: string; onPick: (id: string | null) => void };
 
 export interface Toast {
