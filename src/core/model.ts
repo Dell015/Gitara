@@ -41,6 +41,9 @@ export interface Song {
   /** MusicBrainz recording id, if the title/artist were picked from autocomplete. */
   musicbrainzId?: string;
   visibility: Extract<Visibility, "private" | "public">;
+  /** Star ratings from others, kept by the database (Phase 6). */
+  ratingSum?: number;
+  ratingCount?: number;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 }
@@ -147,6 +150,8 @@ export interface Version {
   bpm?: number;
   timeSignature?: string;
   techniques: string[];
+  /** Upvotes, kept by the database (Phase 6). */
+  votes?: number;
   /** Short name for this take, e.g. "Easy version". */
   label?: string;
   tags: VersionTag[];

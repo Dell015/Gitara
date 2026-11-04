@@ -44,6 +44,8 @@ export function rowToSong(r: Row): Song {
     spotifyUrl: opt(r.spotify_url as string | null),
     musicbrainzId: opt(r.musicbrainz_id as string | null),
     visibility: r.visibility as Song["visibility"],
+    ratingSum: (r.rating_sum as number) ?? 0,
+    ratingCount: (r.rating_count as number) ?? 0,
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
   };
@@ -164,6 +166,7 @@ export function rowToVersion(r: Row): Version {
     difficultyScore: opt(r.difficulty_score as number | null),
     difficultyLevel: opt(r.difficulty_level as Version["difficultyLevel"] | null),
     visibility: r.visibility as Version["visibility"],
+    votes: (r.vote_count as number) ?? 0,
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
   };

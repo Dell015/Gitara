@@ -1,6 +1,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import type { LibraryEntry, Playlist, Song } from "../core/model";
 import { chordsUsed } from "../core/chart";
+import { isMine } from "../data/auth";
+import { othersPlaylistsCached } from "../data/community";
 import { db } from "../data/local-db";
 
 export interface LibrarySong {
@@ -17,8 +19,12 @@ export function useLibrarySongs(): LibrarySong[] | undefined {
   });
 }
 
+/** Playlists in your Library: yours, ones shared with you, and ones you saved (not ones you only looked at). */
 export function usePlaylists(): Playlist[] | undefined {
-  return useLiveQuery(() => db.playlists.toArray());
+  return useLiveQuery(async () => {
+    const { shared, saved } = othersPlaylistsCached();
+    return (await db.playlists.toArray()).filter((p) => isMine(p.ownerId) || shared.has(p.id) || saved.has(p.id));
+  });
 }
 
 export function useEntry(songId: string) {

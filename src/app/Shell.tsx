@@ -1,14 +1,12 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState, type ReactNode } from "react";
 import { startSession } from "../data/auth";
-import { db } from "../data/local-db";
 import { startSync } from "../data/sync";
 import { Art } from "../ui/Art";
 import { warmthFor } from "../ui/artwork";
 import { Chips, ItemRow, Mark } from "../ui/bits";
 import { IconHome, IconPerson, IconPin, IconPlus, IconSearch, IconSongs } from "../ui/icons";
 import { DesktopBar, RightPanel } from "./Desktop";
-import { plural, usePlaylistCounts, useLibrarySongs } from "./hooks";
+import { plural, usePlaylistCounts, useLibrarySongs, usePlaylists } from "./hooks";
 import { NavProvider, useNav, type Route, type Tab } from "./nav";
 import { OverlayHost } from "./OverlayHost";
 import { OverlayProvider, useOverlays } from "./overlays";
@@ -24,6 +22,9 @@ import { SongScreen } from "./screens/Song";
 import { EditVersion } from "./screens/EditVersion";
 import { VersionScreen } from "./screens/Version";
 import { Tuner } from "./screens/Tuner";
+import { MyProfile, UserProfile } from "./screens/Profile";
+import { Admin } from "./screens/Admin";
+import { Legal } from "./screens/Legal";
 import { TrackScreen } from "./screens/Track";
 import { Metronome } from "./screens/Metronome";
 
@@ -103,6 +104,14 @@ function Screen({ route }: { route: Route }) {
       return <VersionScreen id={route.id} play={route.play} fromQueue={route.fromQueue} />;
     case "track":
       return <TrackScreen id={route.id} songId={route.songId} />;
+    case "profile":
+      return <MyProfile />;
+    case "user":
+      return <UserProfile id={route.id} />;
+    case "admin":
+      return <Admin />;
+    case "legal":
+      return <Legal page={route.page} />;
     case "tuner":
       return <Tuner />;
     case "metronome":
@@ -133,7 +142,7 @@ function SidebarLibrary() {
   const nav = useNav();
   const { open } = useOverlays();
   const counts = usePlaylistCounts();
-  const playlists = useLiveQuery(() => db.playlists.toArray());
+  const playlists = usePlaylists();
   const lib = useLibrarySongs();
   const [show, setShow] = useState<"playlists" | "songs" | "artists" | null>(null);
   const sorted = [...(playlists ?? [])].sort((a, b) => Number(!!b.pinnedAt) - Number(!!a.pinnedAt) || b.updatedAt.localeCompare(a.updatedAt));

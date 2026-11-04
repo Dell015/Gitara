@@ -3292,3 +3292,211 @@ svg.icon:not([stroke]) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ============================================================ community (Phase 6) */
+.rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+.rating__avg {
+  color: rgb(236 239 241 / 0.75);
+  font-size: 0.875rem;
+}
+.rating__stars {
+  display: inline-flex;
+}
+.star {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  background: none;
+  color: rgb(236 239 241 / 0.55);
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.star .icon {
+  width: 22px;
+  height: 22px;
+}
+.star[data-on="true"] {
+  color: var(--amber);
+}
+.star:active {
+  transform: scale(0.88);
+}
+.votebtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--space-4) 0 var(--space-3);
+  border: 1.25px solid rgb(255 255 255 / 0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-hover) var(--ease-out);
+}
+.votebtn .icon {
+  width: 20px;
+  height: 20px;
+}
+.votebtn[aria-pressed="true"] {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.votebtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.votebtn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.vrow__votes {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.vrow__votes .icon {
+  width: 16px;
+  height: 16px;
+}
+.vrow__mark--best {
+  color: var(--ink-0);
+  background: var(--amber);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.menuitem--choice {
+  min-height: 60px;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+.menuitem--choice[aria-checked="true"] {
+  background: rgb(224 133 71 / 0.12);
+  box-shadow: inset 3px 0 0 0 transparent;
+}
+.menuitem--choice[aria-checked="true"] .menuitem__title {
+  color: var(--amber);
+}
+.menuitem__title {
+  display: block;
+  font-weight: 600;
+}
+.menuitem__hint--block {
+  display: block;
+  margin-top: 2px;
+}
+.profilehead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.profilehead__art {
+  width: 84px;
+  height: 84px;
+  flex: none;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-2);
+}
+.stat {
+  display: grid;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--ink-1);
+}
+.stat__n {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.stat__l {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+.switchrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 60px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--ink-1);
+  cursor: pointer;
+}
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--ink-3);
+  cursor: pointer;
+  transition: background-color 160ms var(--ease-out);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transition: transform 200ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+.switch:checked {
+  background: var(--amber);
+}
+.switch:checked::after {
+  transform: translateX(20px);
+  background: var(--ink-0);
+}
+.draftnote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-s);
+  background: var(--ink-2);
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.prose {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 44rem;
+  line-height: 1.6;
+}
+.prose h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.prose h2 {
+  margin: var(--space-3) 0 0;
+  font-size: 1.0625rem;
+}
+.prose p,
+.prose ul {
+  margin: 0;
+  color: rgb(236 239 241 / 0.85);
+}
+.prose ul {
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--space-1);
+}

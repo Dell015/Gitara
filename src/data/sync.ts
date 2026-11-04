@@ -260,7 +260,17 @@ export function startSync(): void {
       set({ phase: "error", error: e instanceof Error ? e.message : String(e) });
     }
   };
-  void run();
-  window.addEventListener("online", () => void run());
+  const runAll = async () => {
+    await run();
+    // playlists shared with you or saved from others (loaded lazily to keep the import graph simple)
+    try {
+      const { pullOthersPlaylists } = await import("./community");
+      await pullOthersPlaylists();
+    } catch {
+      /* offline: try again next time */
+    }
+  };
+  void runAll();
+  window.addEventListener("online", () => void runAll());
   void refreshPending();
 }

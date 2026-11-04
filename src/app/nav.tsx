@@ -17,6 +17,10 @@ export type Route =
   | { name: "collection"; kind: "liked" | "learning" | "canplay" }
   | { name: "version"; id: string; play?: boolean; fromQueue?: boolean }
   | { name: "tuner" }
+  | { name: "user"; id: string }
+  | { name: "profile" }
+  | { name: "admin" }
+  | { name: "legal"; page: "terms" | "privacy" | "copyright" | "credits" }
   | { name: "track"; id?: string; songId?: string }
   | { name: "metronome" }
   | { name: "editVersion"; songId: string; id?: string }

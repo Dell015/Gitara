@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GENRES } from "../../core/genres";
-import type { Song } from "../../core/model";
+import type { Playlist, Song } from "../../core/model";
 import { normalize } from "../../core/text";
+import { searchPublicPlaylists } from "../../data/community";
 import { db } from "../../data/local-db";
 import { searchRecordings, type MbSuggestion } from "../../data/musicbrainz";
 import { searchPublicSongs } from "../../data/remote";
@@ -39,6 +40,7 @@ export function Search() {
   const [remote, setRemote] = useState<Song[]>([]);
   const [remoteState, setRemoteState] = useState<"idle" | "loading" | "offline">("idle");
   const [mb, setMb] = useState<MbSuggestion[]>([]);
+  const [remotePls, setRemotePls] = useState<Playlist[]>([]);
   const [recent, setRecent] = useState(loadRecent);
   const input = useRef<HTMLInputElement>(null);
 
@@ -56,6 +58,7 @@ export function Search() {
     const ctrl = new AbortController();
     const t = window.setTimeout(async () => {
       try {
+        searchPublicPlaylists(q).then((x) => !ctrl.signal.aborted && setRemotePls(x), () => undefined);
         const r = await searchPublicSongs(q);
         if (!ctrl.signal.aborted) {
           setRemote(r);
@@ -81,11 +84,12 @@ export function Search() {
     const ids = new Set(local.map((s) => s.id));
     const songs = [...local, ...remote.filter((s) => !ids.has(s.id))];
     const artists = [...new Map(songs.filter((s) => normalize(s.artist).includes(nq)).map((s) => [normalize(s.artist), s.artist])).values()];
-    const pls = (playlists ?? []).filter((p) => normalize(p.name).includes(nq));
+    const localPls = (playlists ?? []).filter((p) => normalize(p.name).includes(nq));
+    const pls = [...localPls, ...remotePls.filter((r) => !localPls.some((l) => l.id === r.id))];
     const known = new Set(songs.map((s) => `${normalize(s.title)}|${normalize(s.artist)}`));
     const missing = mb.filter((m) => !known.has(`${normalize(m.title)}|${normalize(m.artist)}`)).slice(0, 4);
     return { songs, artists, pls, missing };
-  }, [allLocal, remote, playlists, mb, nq]);
+  }, [allLocal, remote, remotePls, playlists, mb, nq]);
 
   const remember = () => {
     const term = q.trim();
@@ -207,7 +211,7 @@ export function Search() {
               {!kind && <h2 className="h2">Playlists</h2>}
               <div className="list">
                 {results.pls.map((p) => (
-                  <ItemRow key={p.id} title={p.name} sub="Playlist" lead={<Mark kind="playlist" seed={p.id} />} onClick={() => nav.goTo("library", { name: "playlist", id: p.id })} />
+                  <ItemRow key={p.id} title={p.name} sub="Playlist" lead={<Mark kind="playlist" seed={p.id} />} onClick={() => nav.push({ name: "playlist", id: p.id })} />
                 ))}
               </div>
             </section>

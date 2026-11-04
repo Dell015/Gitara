@@ -8,7 +8,7 @@ import { useOverlays } from "./overlays";
 
 export function VersionMenu({ id }: { id: string }) {
   const nav = useNav();
-  const { close, showToast } = useOverlays();
+  const { close, open, showToast } = useOverlays();
   const v = useLiveQuery(() => db.versions.get(id), [id]);
   const entry = useLiveQuery(async () => (v ? db.library.get(v.songId) : undefined), [v?.songId]);
   const [confirm, setConfirm] = useState(false);
@@ -57,6 +57,11 @@ export function VersionMenu({ id }: { id: string }) {
           >
             <span>Copy to my versions</span>
             <span className="menuitem__hint">Keeps the credit</span>
+          </button>
+        )}
+        {!mine && v.visibility !== "private" && (
+          <button className="menuitem" data-danger="true" onClick={() => open({ kind: "report", targetType: "version", targetId: id, label: v.label || "Version" })}>
+            <span>Report this version</span>
           </button>
         )}
         {mine && (

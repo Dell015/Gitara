@@ -181,3 +181,23 @@ export const IconArrow = () => (
     <path d="M5 12h13.5M13 6.5l5.5 5.5-5.5 5.5" />
   </Svg>
 );
+export const IconUp = ({ filled }: { filled?: boolean }) =>
+  filled ? (
+    <Svg filled>
+      <path d="M12 4.5 19 13h-4.2v6.5H9.2V13H5z" />
+    </Svg>
+  ) : (
+    <Svg>
+      <path d="M12 4.5 19 13h-4.2v6.5H9.2V13H5z" />
+    </Svg>
+  );
+export const IconStar = ({ filled }: { filled?: boolean }) =>
+  filled ? (
+    <Svg filled>
+      <path d="m12 3.8 2.5 5.2 5.7.8-4.1 4 1 5.7L12 16.8l-5.1 2.7 1-5.7-4.1-4 5.7-.8z" />
+    </Svg>
+  ) : (
+    <Svg>
+      <path d="m12 3.8 2.5 5.2 5.7.8-4.1 4 1 5.7L12 16.8l-5.1 2.7 1-5.7-4.1-4 5.7-.8z" />
+    </Svg>
+  );

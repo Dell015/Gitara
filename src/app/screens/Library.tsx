@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { LearnStatus } from "../../core/model";
 import { normalize } from "../../core/text";
 import { isMine } from "../../data/auth";
+import { othersPlaylistsCached } from "../../data/community";
 import { db } from "../../data/local-db";
 import { Chips, Empty, ItemRow, Mark, SubChips } from "../../ui/bits";
 import { IconClose, IconGrid, IconList, IconPin, IconPlus, IconSearch, IconSort } from "../../ui/icons";
@@ -70,6 +71,7 @@ export function Library() {
   const [top, setTop] = useState<Top | null>(null);
   const [songSub, setSongSub] = useState<SongSub | null>(null);
   const [madeSub, setMadeSub] = useState<MadeSub | null>(null);
+  const [plSub, setPlSub] = useState<"mine" | "shared" | "saved" | null>(null);
   const [initialSort, persistSort] = pref<Sort>("gitara.lib.sort", "recents");
   const [sort, setSortState] = useState<Sort>(initialSort);
   const [initialView, persistView] = pref<"list" | "grid">("gitara.lib.view", "list");
@@ -116,6 +118,10 @@ export function Library() {
     if (wantPlaylists)
       for (const p of playlists ?? []) {
         if (top === "made" && !isMine(p.ownerId)) continue;
+        if (top === "playlists" && plSub) {
+          const o = othersPlaylistsCached();
+          if (plSub === "mine" ? !isMine(p.ownerId) : plSub === "shared" ? !o.shared.has(p.id) : !o.saved.has(p.id)) continue;
+        }
         const n = counts?.get(p.id) ?? 0;
         const sub = `Playlist · ${plural(n, "song")}${p.visibility === "private" ? "" : ` · ${p.visibility === "public" ? "Public" : "Unlisted"}`}`;
         const go = () => nav.push({ name: "playlist", id: p.id });
@@ -165,7 +171,7 @@ export function Library() {
       artist: (a, b) => (a.artist ?? a.title).localeCompare(b.artist ?? b.title) || a.title.localeCompare(b.title),
     };
     return filtered.sort((a, b) => Number(b.pinned) - Number(a.pinned) || cmp[sort](a, b));
-  }, [lib, playlists, counts, recents, top, songSub, madeSub, sort, q, nav, open]);
+  }, [lib, playlists, counts, recents, top, songSub, madeSub, plSub, sort, q, nav, open]);
 
   const likedCount = lib?.length ?? 0;
   const learningCount = (lib ?? []).filter((x) => x.entry.status === "learning").length;
@@ -209,6 +215,7 @@ export function Library() {
                 setTop(v);
                 setSongSub(null);
                 setMadeSub(null);
+                setPlSub(null);
               }}
               options={[
                 { id: "songs", label: "Songs" },
@@ -226,6 +233,17 @@ export function Library() {
                   { id: "learning", label: "Learning" },
                   { id: "performing", label: "Performing" },
                   { id: "liked", label: "No status" },
+                ]}
+              />
+            )}
+            {top === "playlists" && (
+              <SubChips
+                value={plSub}
+                onChange={setPlSub}
+                options={[
+                  { id: "mine", label: "By you" },
+                  { id: "shared", label: "Shared with you" },
+                  { id: "saved", label: "Saved" },
                 ]}
               />
             )}

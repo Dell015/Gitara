@@ -4,6 +4,7 @@ import { audio } from "../../audio/guitar";
 import { chordsUsed } from "../../core/chart";
 import { tuningName } from "../../core/tunings";
 import { isMine } from "../../data/auth";
+import { decideSuggestion, myRating, openSuggestions, rateSong, refreshCounts, type Suggestion } from "../../data/community";
 import { publicTracksForSong, publicVersionsForSong } from "../../data/remote";
 import { db } from "../../data/local-db";
 import * as repo from "../../data/repo";
@@ -11,12 +12,13 @@ import { Empty, ItemRow, Mark, TopBar } from "../../ui/bits";
 import { warmthFor } from "../../ui/artwork";
 import { HeatMark } from "../../ui/HeatMark";
 import { Hero } from "../../ui/Hero";
-import { IconExternal, IconHeart, IconMore, IconPlus } from "../../ui/icons";
+import { IconExternal, IconHeart, IconMore, IconPlus, IconStar, IconUp } from "../../ui/icons";
 import { formatDuration } from "../hooks";
 import { useNav } from "../nav";
 import { useOverlays } from "../overlays";
 import { SongList } from "../rows";
 
+const FIELD: Record<string, string> = { title: "Title", artist: "Artist", album: "Album", releaseYear: "Year", genre: "Genre", originalKey: "Key", originalBpm: "Tempo" };
 const LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" } as const;
 const STATUS_LABEL = { planning: "Planning to learn", learning: "Learning", performing: "Performing" } as const;
 
@@ -49,9 +51,19 @@ export function SongScreen({ id }: { id: string }) {
   useEffect(() => {
     publicVersionsForSong(id).catch(() => undefined);
   }, [id]);
+  // yours first, then the best-voted, then the newest
   const versions = [...(localVersions ?? [])].sort(
-    (a, b) => Number(isMine(b.authorId)) - Number(isMine(a.authorId)) || b.updatedAt.localeCompare(a.updatedAt),
+    (a, b) => Number(isMine(b.authorId)) - Number(isMine(a.authorId)) || (b.votes ?? 0) - (a.votes ?? 0) || b.updatedAt.localeCompare(a.updatedAt),
   );
+  const publicVs = versions.filter((x) => x.visibility === "public");
+  const bestId = publicVs.reduce<{ id?: string; v: number }>((m, x) => ((x.votes ?? 0) > m.v ? { id: x.id, v: x.votes ?? 0 } : m), { v: 0 }).id;
+  const [stars, setStars] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  useEffect(() => {
+    refreshCounts(id).catch(() => undefined);
+    myRating(id).then(setStars, () => undefined);
+    openSuggestions(id).then(setSuggestions, () => undefined);
+  }, [id]);
 
   useEffect(() => {
     void repo.touchRecent("song", id);
@@ -105,6 +117,39 @@ export function SongScreen({ id }: { id: string }) {
             {song.visibility === "public" ? "Public" : "Private"}
             {isMine(song.createdBy) ? " · Added by you" : ""}
           </p>
+          {song.visibility === "public" && (
+            <div className="rating">
+              <span className="rating__avg num">
+                {song.ratingCount ? `${(song.ratingSum! / song.ratingCount).toFixed(1)} from ${song.ratingCount} rating${song.ratingCount === 1 ? "" : "s"}` : "No ratings yet"}
+              </span>
+              {!isMine(song.createdBy) && (
+                <span className="rating__stars" role="radiogroup" aria-label="Rate how accurate and complete this song is">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      role="radio"
+                      aria-checked={stars === n}
+                      aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                      className="star"
+                      data-on={(stars ?? 0) >= n}
+                      onClick={async () => {
+                        const next = stars === n ? null : n;
+                        try {
+                          await rateSong(id, next);
+                          setStars(next);
+                          showToast(next ? `Rated ${next} star${next > 1 ? "s" : ""}` : "Rating removed");
+                        } catch (e) {
+                          showToast(e instanceof Error ? e.message : "Couldn't save the rating");
+                        }
+                      }}
+                    >
+                      <IconStar filled={(stars ?? 0) >= n} />
+                    </button>
+                  ))}
+                </span>
+              )}
+            </div>
+          )}
           <div className="herocard__actions">
             <button className="ringbtn" data-on={liked} aria-pressed={liked} aria-label={liked ? "Remove from Library" : "Add to Library"} onClick={() => void toggleLike()}>
               <IconHeart filled={liked} />
@@ -173,6 +218,45 @@ export function SongScreen({ id }: { id: string }) {
         </section>
       )}
 
+      {isMine(song.createdBy) && suggestions.length > 0 && (
+        <section className="block">
+          <h2 className="h2">Suggested fixes</h2>
+          {suggestions.map((sg) => (
+            <div key={sg.id} className="notice">
+              <p className="notice__title">
+                {Object.entries(sg.patch)
+                  .map(([k, val]) => `${FIELD[k] ?? k}: ${val === null ? "(remove)" : String(val)}`)
+                  .join(" · ")}
+              </p>
+              {sg.note && <p className="notice__text">“{sg.note}”</p>}
+              <div className="stack">
+                <button
+                  className="btn btn--primary btn--sm"
+                  onClick={async () => {
+                    const patch = Object.fromEntries(Object.entries(sg.patch).map(([k, val]) => [k, val === null ? undefined : val]));
+                    await repo.updateSong(id, patch);
+                    await decideSuggestion(sg.id, true).catch(() => undefined);
+                    setSuggestions((s) => s.filter((x) => x.id !== sg.id));
+                    showToast("Applied");
+                  }}
+                >
+                  Apply
+                </button>
+                <button
+                  className="btn btn--ghost btn--sm"
+                  onClick={async () => {
+                    await decideSuggestion(sg.id, false).catch(() => undefined);
+                    setSuggestions((s) => s.filter((x) => x.id !== sg.id));
+                  }}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       <section className="block">
         <div className="block__head">
           <h2 className="h2">Versions</h2>
@@ -188,6 +272,7 @@ export function SongScreen({ id }: { id: string }) {
                   <span className="irow__main">
                     <span className="irow__title">
                       {x.label || (isMine(x.authorId) ? "Your version" : "Version")}
+                      {x.id === bestId && <span className="vrow__mark vrow__mark--best">Best version</span>}
                       {entry?.preferredVersionId === x.id && <span className="vrow__mark">Opens first</span>}
                     </span>
                     <span className="irow__sub num">
@@ -197,6 +282,11 @@ export function SongScreen({ id }: { id: string }) {
                     </span>
                   </span>
                   <span className="vrow__chords chordname">{chordsUsed(x.content).slice(0, 5).join(" ")}</span>
+                  {x.visibility === "public" && (
+                    <span className="vrow__votes num" aria-label={`${x.votes ?? 0} upvotes`}>
+                      <IconUp /> {x.votes ?? 0}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}

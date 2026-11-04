@@ -7,6 +7,7 @@ import { db } from "../data/local-db";
 import { searchPublicSongs } from "../data/remote";
 import * as repo from "../data/repo";
 import { useSyncState } from "../data/sync";
+import { myProfile } from "../data/community";
 import { Segmented } from "../ui/bits";
 import { IconCheck, IconPlus } from "../ui/icons";
 import { Sheet } from "../ui/Sheet";
@@ -16,6 +17,7 @@ import { queue } from "./queue";
 import { VersionMenu } from "./VersionMenu";
 import { GroovesSheet } from "./screens/Track";
 import { TrainerSheet } from "./TrainerSheet";
+import { ReportSheet, SuggestSheet } from "./CommunitySheets";
 import { useOverlays, type Overlay } from "./overlays";
 
 export function OverlayHost() {
@@ -48,6 +50,8 @@ const TITLES: Record<Overlay["kind"], string> = {
   versionMenu: "Version options",
   grooves: "Grooves",
   trainer: "Speed trainer",
+  report: "Report",
+  suggest: "Suggest a fix",
   pickTrack: "Backing track",
 };
 
@@ -79,6 +83,10 @@ function Content({ o }: { o: Overlay }) {
       return <FretboardBuilder tuning={o.tuning} capo={o.capo} start={o.start} onDone={o.onDone} />;
     case "versionMenu":
       return <VersionMenu id={o.id} />;
+    case "report":
+      return <ReportSheet targetType={o.targetType} targetId={o.targetId} label={o.label} />;
+    case "suggest":
+      return <SuggestFor songId={o.songId} />;
     case "trainer":
       return <TrainerSheet mode={o.mode} bpm={o.bpm} onStart={o.onStart} />;
     case "grooves":
@@ -220,6 +228,12 @@ function SongMenu({ songId, playlistItemId }: { songId: string; playlistItemId?:
               nav.push({ name: "addSong", editId: songId });
             }}
           />
+        )}
+        {!isMine(song.createdBy) && song.visibility === "public" && (
+          <MenuItem label="Suggest a fix to the song info" onClick={() => open({ kind: "suggest", songId })} />
+        )}
+        {!isMine(song.createdBy) && song.visibility === "public" && (
+          <MenuItem label="Report" danger onClick={() => open({ kind: "report", targetType: "song", targetId: songId, label: `${song.title} · ${song.artist}` })} />
         )}
         {playlistItemId && (
           <MenuItem
@@ -487,6 +501,12 @@ function CreateSheet() {
 function AccountSheet() {
   const session = useSession();
   const sync = useSyncState();
+  const nav = useNav();
+  const { close } = useOverlays();
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    if (session.status === "ready") myProfile().then((p) => setAdmin(!!p?.isAdmin), () => undefined);
+  }, [session.status]);
   const status =
     session.status === "ready"
       ? session.isGuest
@@ -509,6 +529,10 @@ function AccountSheet() {
             : sync.lastSyncedAt
               ? `Everything is saved to the cloud.`
               : "Your changes save to the cloud when you're online.";
+  const go = (r: Parameters<typeof nav.push>[0]) => {
+    close();
+    nav.push(r);
+  };
   return (
     <>
       <SheetHead title={status} sub={syncLine} />
@@ -517,6 +541,10 @@ function AccountSheet() {
         everything.
       </p>
       <div className="menu">
+        <MenuItem label="Your profile" hint="@handle, what others see" onClick={() => go({ name: "profile" })} />
+        {admin && <MenuItem label="Review queue" hint="Reports and duplicates" onClick={() => go({ name: "admin" })} />}
+        <MenuItem label="Terms, privacy and copyright" onClick={() => go({ name: "legal", page: "terms" })} />
+        <MenuItem label="Credits" onClick={() => go({ name: "legal", page: "credits" })} />
         <a className="menuitem" href="#design">
           <span>Design preview</span>
         </a>
@@ -609,4 +637,9 @@ function PickTrack({ songId, current, onPick }: { songId: string; current?: stri
       </div>
     </>
   );
+}
+
+function SuggestFor({ songId }: { songId: string }) {
+  const song = useLiveQuery(() => db.songs.get(songId), [songId]);
+  return song ? <SuggestSheet song={song} /> : null;
 }

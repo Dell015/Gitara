@@ -8,13 +8,14 @@ import { findVoicings } from "../../core/shapes";
 import { accidentalForKey, transposeChord, transposeKey, type Accidental } from "../../core/theory";
 import { tuningName } from "../../core/tunings";
 import { isMine } from "../../data/auth";
+import { getProfile, myVotes, setVote } from "../../data/community";
 import { db } from "../../data/local-db";
 import * as repo from "../../data/repo";
 import { Empty, TopBar } from "../../ui/bits";
 import { ChordDiagram, StrumGlyph } from "../../ui/ChordDiagram";
 import { warmthFor } from "../../ui/artwork";
 import { Hero } from "../../ui/Hero";
-import { IconMore, IconPause, IconPlay } from "../../ui/icons";
+import { IconMore, IconPause, IconPlay, IconUp } from "../../ui/icons";
 import { pulseLights } from "../../ui/lightShader";
 import { keepAwake } from "../../audio/metronome";
 import { useNav } from "../nav";
@@ -39,7 +40,7 @@ const LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "A
 /** One version of a song, ready to read on a music stand and play along with (D3). */
 export function VersionScreen({ id, play, fromQueue }: { id: string; play?: boolean; fromQueue?: boolean }) {
   const nav = useNav();
-  const { open } = useOverlays();
+  const { open, showToast } = useOverlays();
   const prefs = usePrefs();
   const v = useLiveQuery(() => db.versions.get(id), [id]);
   const song = useLiveQuery(async () => (v ? db.songs.get(v.songId) : undefined), [v?.songId]);
@@ -64,6 +65,14 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
     }
   });
   const [guitar, setGuitar] = useState(true);
+  const [voted, setVoted] = useState(false);
+  const [author, setAuthor] = useState<{ handle?: string; displayName?: string } | null>(null);
+  useEffect(() => {
+    myVotes([id]).then((s) => setVoted(s.has(id)), () => undefined);
+  }, [id]);
+  useEffect(() => {
+    if (v?.authorId && !isMine(v.authorId)) getProfile(v.authorId).then(setAuthor, () => undefined);
+  }, [v?.authorId]);
   const track = useLiveQuery(async () => (trackId ? db.tracks.get(trackId) : undefined), [trackId]);
   const userStopped = useRef(false);
   const releaseWake = useRef<() => void>(() => undefined);
@@ -233,6 +242,31 @@ export function VersionScreen({ id, play, fromQueue }: { id: string; play?: bool
               {playing ? <IconPause /> : <IconPlay />}
               {playing ? "Stop" : "Play along"}
             </button>
+            {v.visibility === "public" && (
+              <button
+                className="votebtn"
+                aria-pressed={voted}
+                disabled={mine}
+                title={mine ? "You can't vote for your own version" : voted ? "Take your vote back" : "Upvote: this version is accurate"}
+                onClick={async () => {
+                  try {
+                    const n = await setVote(id, !voted);
+                    setVoted(!voted);
+                    showToast(!voted ? `Upvoted (${n})` : "Vote taken back");
+                  } catch (e) {
+                    showToast(e instanceof Error ? e.message : "Couldn't vote");
+                  }
+                }}
+              >
+                <IconUp filled={voted} />
+                <span className="num">{v.votes ?? 0}</span>
+              </button>
+            )}
+            {author && !mine && (
+              <button className="link" onClick={() => nav.push({ name: "user", id: v.authorId! })}>
+                by {author.handle ? `@${author.handle}` : author.displayName || "a guitarist"}
+              </button>
+            )}
             {entry?.preferredVersionId === id && <span className="herocard__meta">Opens first</span>}
           </div>
         </div>
