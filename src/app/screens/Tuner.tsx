@@ -1,19 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { strum } from "../../audio/guitar";
-import { listen, type Listener, type MicState } from "../../audio/mic";
+import { listen, micStateFor, type Listener, type MicState } from "../../audio/mic";
 import { GUITAR_TUNINGS } from "../../core/instrument";
-import { nearest, nearestString } from "../../core/pitch";
 import { noteName } from "../../core/theory";
+import { octaveOf, TuneTracker, type TuneReading } from "../../core/tune";
 import { TopBar } from "../../ui/bits";
 import { Stepper } from "./Version";
 import { useNav } from "../nav";
 
 const A4_KEY = "gitara.tuner.a4";
 const TUNING_KEY = "gitara.tuner.tuning";
+const TICKS = Array.from({ length: 21 }, (_, i) => (i - 10) * 5);
 
 /**
- * Tuner (F2). The string buttons sit like tuning pegs on a headstock (three a side), so the two E
- * strings can't be mixed up. In tune is shown by a check and words as well as colour.
+ * Tuner (F2). While a string rings, a marker slides along a scale: left of the middle is flat, right is
+ * sharp, and it settles in the middle (with a check and words, not just colour) when the string is in
+ * tune. The last reading stays for a moment after the string dies away. The string buttons sit like
+ * tuning pegs on a headstock (three a side), so the two E strings can't be mixed up; the one you are
+ * playing shows how far off it is.
  */
 export function Tuner() {
   const nav = useNav();
@@ -21,12 +25,19 @@ export function Tuner() {
   const [tuningId, setTuningId] = useState(() => localStorage.getItem(TUNING_KEY) ?? "standard");
   const [a4, setA4] = useState(() => Number(localStorage.getItem(A4_KEY)) || 440);
   const [target, setTarget] = useState<number | null>(null); // locked string, or auto
-  const [reading, setReading] = useState<{ hz: number; string: number; cents: number; note: string } | null>(null);
-  const [steady, setSteady] = useState(0);
+  const [reading, setReading] = useState<TuneReading | null>(null);
   const mic = useRef<Listener | null>(null);
-  const smooth = useRef<number | null>(null);
   const tuning = GUITAR_TUNINGS.find((t) => t.id === tuningId)?.tuning ?? GUITAR_TUNINGS[0]!.tuning;
+  const tracker = useRef(new TuneTracker(tuning, a4, target));
+  const started = useRef(false);
+  // the microphone is open but nothing at all has come through
+  const heard = useRef(false);
+  const [deaf, setDeaf] = useState(false);
 
+  useEffect(() => {
+    tracker.current.configure(tuning, a4, target);
+    setReading(null);
+  }, [tuning, a4, target]);
   useEffect(() => () => mic.current?.stop(), []);
   useEffect(() => {
     try {
@@ -38,90 +49,136 @@ export function Tuner() {
   }, [a4, tuningId]);
 
   const startMic = async () => {
+    if (started.current) return;
+    started.current = true;
     setState("asking");
     try {
-      mic.current = await listen((hz) => {
-        if (!hz) {
-          smooth.current = null;
-          setReading(null);
-          setSteady(0);
-          return;
-        }
-        // light smoothing so the needle doesn't jitter; jump straight to a new note
-        const prev = smooth.current;
-        const s = prev && Math.abs(1200 * Math.log2(hz / prev)) < 60 ? prev * 0.65 + hz * 0.35 : hz;
-        smooth.current = s;
-        const ns = nearestString(s, tuning, a4);
-        const str = target ?? ns.string;
-        const cents = Math.round(1200 * Math.log2(s / (a4 * Math.pow(2, (tuning[str]! - 69) / 12))));
-        const nn = nearest(s, a4);
-        setReading({ hz: s, string: str, cents, note: noteName(nn.midi % 12) });
-        setSteady((c) => (Math.abs(cents) <= 4 ? c + 1 : 0));
+      heard.current = false;
+      setDeaf(false);
+      mic.current = await listen((hz, level) => {
+        if (level > 0.002) heard.current = true;
+        const r = tracker.current.update(hz, performance.now());
+        setReading((prev) => (prev && r && prev.cents === r.cents && prev.held === r.held && prev.string === r.string && prev.inTune === r.inTune && Math.abs(prev.exact - r.exact) < 0.5 ? prev : r));
       });
       setState("listening");
+      window.setTimeout(() => !heard.current && mic.current && setDeaf(true), 6000);
     } catch (e) {
-      setState(e instanceof Error && /denied|NotAllowed|Permission/i.test(e.name + e.message) ? "denied" : "unavailable");
+      started.current = false;
+      setState(micStateFor(e));
     }
   };
 
-  const cents = reading ? Math.max(-50, Math.min(50, reading.cents)) : 0;
-  const inTune = !!reading && Math.abs(reading.cents) <= 4 && steady >= 4;
+  // if the microphone was already allowed, start listening straight away: open, play a string, see the marker
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const p = await navigator.permissions?.query({ name: "microphone" as PermissionName });
+        if (alive && p?.state === "granted") void startMic();
+      } catch {
+        /* the button is there */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const listening = state === "listening";
+  const shown = useMemo(() => (listening ? reading : null), [listening, reading]);
+  const mode = !shown ? "idle" : shown.inTune ? "in" : shown.cents < 0 ? "flat" : "sharp";
+  const exact = shown ? Math.max(-50, Math.min(50, shown.exact)) : 0;
+  const midi = shown ? tuning[shown.string]! : null;
   const left = tuning.slice(0, 3).map((_, i) => i);
   const right = tuning.slice(3).map((_, i) => i + 3);
-  const peg = (i: number) => (
-    <button
-      key={i}
-      className="peg"
-      aria-pressed={target === i}
-      data-active={reading?.string === i}
-      onClick={() => {
-        setTarget((t) => (t === i ? null : i));
-        // a reference tone: the open string, the way it should sound
-        const frets = tuning.map((_, k) => (k === i ? 0 : -1));
-        strum(frets, tuning, 0, { length: 2.4 });
-      }}
-      aria-label={`String ${tuning.length - i}, ${noteName(tuning[i]! % 12)}. ${target === i ? "Locked" : "Tap to hear it and lock"}`}
-    >
-      <span className="peg__note">{noteName(tuning[i]! % 12)}</span>
-      <span className="peg__num num">{tuning.length - i}</span>
-    </button>
-  );
+  const abs = shown ? Math.abs(shown.cents) : 0;
+  useEffect(() => {
+    if (shown) setDeaf(false);
+  }, [shown]);
+
+  const peg = (i: number) => {
+    const on = shown?.string === i;
+    return (
+      <button
+        key={i}
+        className="peg"
+        aria-pressed={target === i}
+        data-active={on}
+        data-tune={on ? mode : undefined}
+        onClick={() => {
+          setTarget((t) => (t === i ? null : i));
+          // a reference tone: the open string, the way it should sound
+          const frets = tuning.map((_, k) => (k === i ? 0 : -1));
+          strum(frets, tuning, 0, { length: 2.4 });
+        }}
+        aria-label={`String ${tuning.length - i}, ${noteName(tuning[i]! % 12)}. ${target === i ? "Locked" : "Tap to hear it and lock"}`}
+      >
+        <span className="peg__note">{noteName(tuning[i]! % 12)}</span>
+        {on && shown ? (
+          <span className="peg__off num">
+            {mode === "in" ? (
+              <svg viewBox="0 0 24 24" width="18" height="18" className="icon" aria-label="In tune">
+                <path d="M5 12.5l4.5 4.5L19 7.5" />
+              </svg>
+            ) : (
+              `${shown.cents > 0 ? "+" : "−"}${abs}`
+            )}
+          </span>
+        ) : (
+          <span className="peg__num num">{tuning.length - i}</span>
+        )}
+      </button>
+    );
+  };
+
+  const cue =
+    !listening || !shown
+      ? listening
+        ? "Play a string and let it ring"
+        : " "
+      : mode === "in"
+        ? "In tune"
+        : mode === "flat"
+          ? `${abs} cents flat: tighten the string`
+          : `${abs} cents sharp: loosen the string`;
 
   return (
     <>
       <TopBar onBack={nav.back} title="Tuner" />
       <div className="tuner">
-        <div className="tuner__read" data-in={inTune} aria-live="polite">
-          <span className="tuner__note">{reading ? noteName(tuning[reading.string]! % 12) : "–"}</span>
-          <span className="tuner__state">
-            {state !== "listening"
-              ? " "
-              : !reading
-                ? "Play a string"
-                : inTune
-                  ? "In tune"
-                  : reading.cents < 0
-                    ? `${-reading.cents} cents flat: tighten`
-                    : `${reading.cents} cents sharp: loosen`}
+        <div className="tuner__read" data-mode={mode} data-held={!!shown?.held} aria-live="polite">
+          <span className="tuner__note" data-idle={!shown}>
+            {midi === null ? "–" : noteName(midi % 12)}
+            {midi !== null && <span className="tuner__oct num">{octaveOf(midi)}</span>}
           </span>
-          <svg className="gauge" viewBox="0 0 200 110" aria-hidden="true">
-            <path className="gauge__arc" d="M20 100 A80 80 0 0 1 180 100" />
-            {[-50, -25, 0, 25, 50].map((c) => {
-              const a = ((c / 50) * 70 - 90) * (Math.PI / 180);
-              return <line key={c} className="gauge__tick" data-zero={c === 0} x1={100 + Math.cos(a) * 72} y1={100 + Math.sin(a) * 72} x2={100 + Math.cos(a) * 82} y2={100 + Math.sin(a) * 82} />;
-            })}
-            <g className="gauge__needle" style={{ transform: `rotate(${(cents / 50) * 70}deg)` }}>
-              <line x1="100" y1="100" x2="100" y2="30" />
-              <circle cx="100" cy="100" r="5" />
-            </g>
-            {inTune && <path className="gauge__check" d="M88 80l8 8 16-18" />}
-          </svg>
-          {reading && <span className="tuner__hz num">{reading.hz.toFixed(1)} Hz · hearing {reading.note}</span>}
+          <span className="tuner__state">{cue}</span>
+
+          <div className="tmeter" style={{ ["--pos" as string]: exact / 50 }}>
+            <div className="tmeter__scale">
+              {TICKS.map((c) => (
+                <span key={c} className="tmeter__tick" data-major={c % 25 === 0} data-zero={c === 0} style={{ ["--at" as string]: c / 50 }} />
+              ))}
+              <span className="tmeter__zone" />
+              <span className="tmeter__marker" data-on={!!shown} />
+            </div>
+            <div className="tmeter__ends" aria-hidden="true">
+              <span>Flat</span>
+              <span>Sharp</span>
+            </div>
+          </div>
+
+          <span className="tuner__hz num">{shown ? `${shown.hz.toFixed(1)} Hz · target ${shown.targetHz.toFixed(1)} Hz` : " "}</span>
         </div>
 
-        {state !== "listening" && (
+        {!listening && (
           <div className="notice">
-            {state === "denied" ? (
+            {state === "insecure" ? (
+              <>
+                <p className="notice__title">The microphone needs a secure connection</p>
+                <p className="notice__text">Browsers only allow the microphone on https pages (or on localhost). Open Gitara from its https address, not an http address on your network.</p>
+              </>
+            ) : state === "denied" ? (
               <>
                 <p className="notice__title">The microphone is blocked</p>
                 <p className="notice__text">Allow the microphone for this site in your browser's settings (on iPhone: Settings, Safari, Microphone), then try again.</p>
@@ -137,11 +194,18 @@ export function Tuner() {
                 <p className="notice__text">Nothing is recorded or sent anywhere. You can also tap a string to hear its note.</p>
               </>
             )}
-            {state !== "unavailable" && (
+            {state !== "unavailable" && state !== "insecure" && (
               <button className="btn btn--primary" onClick={() => void startMic()} disabled={state === "asking"}>
-                {state === "denied" ? "Try again" : "Start listening"}
+                {state === "denied" ? "Try again" : state === "asking" ? "Waiting for the microphone…" : "Start listening"}
               </button>
             )}
+          </div>
+        )}
+
+        {listening && deaf && (
+          <div className="notice" role="status">
+            <p className="notice__title">No sound is reaching the microphone</p>
+            <p className="notice__text">The microphone is on, but nothing has come through. Check that the right microphone is picked and not muted, and that no other app is using it. Then play a string close to it.</p>
           </div>
         )}
 

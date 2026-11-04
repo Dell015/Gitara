@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { strum } from "../../audio/guitar";
-import { listenSpectrum, type Listener, type MicState } from "../../audio/mic";
+import { listenSpectrum, micStateFor, type Listener, type MicState } from "../../audio/mic";
 import { ChordTracker, chromaFromDb, notesText, type Heard } from "../../core/chordlisten";
 import { GUITAR } from "../../core/instrument";
 import { findVoicings } from "../../core/shapes";
@@ -32,6 +32,9 @@ export function Listen() {
   // a chord only goes in "You played" once it has held for about half a second, so the in-between names while one chord blends into the next are skipped
   const lastName = useRef<string | null>(null);
   const held = useRef(0);
+  // the microphone is open but nothing at all has come through
+  const gotSound = useRef(false);
+  const [deaf, setDeaf] = useState(false);
 
   useEffect(() => () => mic.current?.stop(), []);
   // a changed sharps/flats setting starts a fresh tracker
@@ -43,7 +46,10 @@ export function Listen() {
     setState("asking");
     try {
       tracker.current.reset();
+      gotSound.current = false;
+      setDeaf(false);
       mic.current = await listenSpectrum((db, sampleRate, peak) => {
+        if (peak > 0.002) gotSound.current = true;
         const loud = peak > 0.02;
         setLevel(Math.min(1, peak * 3));
         const r = chromaFromDb(db, sampleRate);
@@ -60,8 +66,9 @@ export function Listen() {
         }
       });
       setState("listening");
+      window.setTimeout(() => !gotSound.current && mic.current && setDeaf(true), 6000);
     } catch (e) {
-      setState(e instanceof Error && /denied|NotAllowed|Permission/i.test(e.name + e.message) ? "denied" : "unavailable");
+      setState(micStateFor(e));
     }
   };
   const stop = () => {
@@ -72,6 +79,7 @@ export function Listen() {
     held.current = 0;
     setHeard(null);
     setLevel(0);
+    setDeaf(false);
     setState("idle");
   };
 
@@ -134,6 +142,18 @@ export function Listen() {
           </section>
         )}
 
+        {state === "insecure" && (
+          <div className="notice">
+            <p className="notice__title">The microphone needs a secure connection</p>
+            <p className="notice__text">Browsers only allow the microphone on https pages (or on localhost). Open Gitara from its https address, not an http address on your network.</p>
+          </div>
+        )}
+        {listening && deaf && !gotSound.current && (
+          <div className="notice" role="status">
+            <p className="notice__title">No sound is reaching the microphone</p>
+            <p className="notice__text">The microphone is on, but nothing has come through. Check that the right microphone is picked and not muted, and that no other app is using it. Then strum close to it.</p>
+          </div>
+        )}
         {state === "denied" && (
           <div className="notice">
             <p className="notice__title">The microphone is blocked</p>
@@ -155,7 +175,7 @@ export function Listen() {
             <button className="btn btn--secondary" onClick={stop}>
               Stop listening
             </button>
-          ) : state !== "unavailable" ? (
+          ) : state !== "unavailable" && state !== "insecure" ? (
             <button className="btn btn--primary btn--big" onClick={() => void start()} disabled={state === "asking"}>
               {state === "denied" ? "Try again" : state === "asking" ? "Waiting for the microphone…" : "Start listening"}
             </button>

@@ -89,11 +89,13 @@ export function Library() {
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
     const rec = recents ?? new Map<string, number>();
+    // the front page is Liked songs, Learning now and your playlists; every song lives under "Songs" (pinned ones also stay up front)
     const wantSongs = !top || top === "songs" || (top === "made" && madeSub !== "playlists");
     const wantPlaylists = !top || top === "playlists" || (top === "made" && madeSub !== "songs");
 
     if (wantSongs)
       for (const { song, entry } of lib ?? []) {
+        if (!top && !entry.pinnedAt) continue;
         if (top === "made" && !isMine(song.createdBy)) continue;
         if (top === "songs" && songSub) {
           if (songSub === "liked" ? entry.status !== null : entry.status !== songSub) continue;
@@ -309,7 +311,7 @@ export function Library() {
           ))}
         </ul>
       )}
-      {!nothing && !loading && !items.length && <p className="muted">Nothing here yet.</p>}
+      {!nothing && !loading && !items.length && !showCollections && <p className="muted">Nothing here yet.</p>}
     </>
   );
 }

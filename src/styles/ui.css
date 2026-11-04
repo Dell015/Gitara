@@ -2659,60 +2659,114 @@ select.input {
   line-height: 1;
   letter-spacing: -0.03em;
 }
+.tuner__note[data-idle="true"] {
+  color: var(--text-2);
+}
+.tuner__oct {
+  margin-left: 2px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  vertical-align: top;
+  color: var(--text-2);
+}
 .tuner__state {
   min-height: 1.5em;
   color: var(--text-2);
   font-weight: 600;
+  text-align: center;
 }
-.tuner__read[data-in="true"] .tuner__state {
+.tuner__read[data-mode="in"] .tuner__state {
   color: var(--text);
 }
+.tuner__read[data-held="true"] .tuner__note,
+.tuner__read[data-held="true"] .tuner__state {
+  opacity: 0.6;
+}
 .tuner__hz {
+  min-height: 1.2em;
   color: var(--text-2);
   font-size: 0.8125rem;
 }
-.gauge {
-  width: min(320px, 100%);
-  height: auto;
+
+/* the meter: left of the middle is flat, right is sharp */
+.tmeter {
+  width: min(420px, 100%);
+  margin-top: var(--space-4);
+  --tune-ok: #7fd6b0;
 }
-.gauge__arc {
-  fill: none;
-  stroke: var(--ink-3);
-  stroke-width: 6;
-  stroke-linecap: round;
+.tmeter__scale {
+  position: relative;
+  height: 64px;
+  container-type: inline-size;
 }
-.gauge__tick {
-  stroke: var(--text-2);
-  stroke-width: 1.5;
+.tmeter__tick {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #3d4b53;
+  transform: translateX(calc(var(--at) * 50cqw));
 }
-.gauge__tick[data-zero="true"] {
-  stroke: var(--text);
-  stroke-width: 2.5;
+.tmeter__tick[data-major="true"] {
+  height: 22px;
+  background: var(--text-2);
 }
-.gauge__needle {
-  transform-origin: 100px 100px;
-  transform-box: view-box;
-  transition: transform 120ms var(--ease-out);
+.tmeter__tick[data-zero="true"] {
+  height: 30px;
+  background: var(--text);
 }
-.gauge__needle line {
-  stroke: var(--amber);
-  stroke-width: 3;
-  stroke-linecap: round;
+.tmeter__zone {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 8%;
+  height: 100%;
+  margin-left: -4%;
+  border-radius: 10px;
+  background: rgb(236 239 241 / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(236 239 241 / 0.12);
 }
-.gauge__needle circle {
-  fill: var(--amber);
+.tmeter__marker {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: var(--amber);
+  opacity: 0;
+  transform: translateX(calc(var(--pos) * 50cqw));
+  transition: transform 110ms var(--ease-out), opacity 220ms var(--ease-out), background-color 160ms var(--ease-out);
 }
-.tuner__read[data-in="true"] .gauge__needle line,
-.tuner__read[data-in="true"] .gauge__needle circle {
-  stroke: var(--text);
-  fill: var(--text);
+.tmeter__marker[data-on="true"] {
+  opacity: 1;
 }
-.gauge__check {
-  fill: none;
-  stroke: var(--text);
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.tuner__read[data-held="true"] .tmeter__marker {
+  opacity: 0.45;
+}
+.tuner__read[data-mode="in"] .tmeter__marker {
+  background: var(--tune-ok);
+}
+.tuner__read[data-mode="in"] .tmeter__zone {
+  background: rgb(127 214 176 / 0.14);
+  box-shadow: inset 0 0 0 1px var(--tune-ok);
+}
+.tmeter__ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tmeter__marker {
+    transition: opacity 0.01s;
+  }
 }
 .headstock {
   display: grid;
@@ -2749,6 +2803,19 @@ select.input {
 }
 .peg[data-active="true"] {
   border-color: rgb(236 239 241 / 0.4);
+}
+.peg[data-tune="in"] {
+  border-color: #7fd6b0;
+}
+.peg__off {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.peg[data-tune="in"] .peg__off {
+  color: #7fd6b0;
 }
 .peg[aria-pressed="true"] {
   border-color: var(--amber);

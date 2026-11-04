@@ -5,16 +5,38 @@
 import { detectPitch } from "../core/pitch";
 import { audio } from "./guitar";
 
-export type MicState = "idle" | "asking" | "listening" | "denied" | "unavailable";
+export type MicState = "idle" | "asking" | "listening" | "denied" | "unavailable" | "insecure";
 
 export interface Listener {
   stop(): void;
 }
 
-export async function listen(onPitch: (hz: number | null, level: number) => void): Promise<Listener> {
+/**
+ * Opens the microphone and the audio engine. The engine is created and woken inside the tap, before we wait
+ * for the permission prompt: phones (iPhone above all) only let audio run if it starts straight from a tap, and
+ * a context made after the prompt stays silent. Throws "insecure" when the page isn't on https (or localhost),
+ * which is the one case where the browser hides the microphone completely.
+ */
+async function openMic(): Promise<{ ctx: AudioContext; stream: MediaStream }> {
+  if (!window.isSecureContext) throw new Error("insecure");
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("unavailable");
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
   const { ctx } = audio();
+  void ctx.resume().catch(() => undefined);
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  if (ctx.state !== "running") await ctx.resume().catch(() => undefined);
+  return { ctx, stream };
+}
+
+/** Which screen message fits an error from opening the microphone. */
+export function micStateFor(e: unknown): MicState {
+  const text = e instanceof Error ? `${e.name} ${e.message}` : String(e);
+  if (/insecure/i.test(text)) return "insecure";
+  if (/denied|NotAllowed|Permission/i.test(text)) return "denied";
+  return "unavailable";
+}
+
+export async function listen(onPitch: (hz: number | null, level: number) => void): Promise<Listener> {
+  const { ctx, stream } = await openMic();
   const src = ctx.createMediaStreamSource(stream);
   const an = ctx.createAnalyser();
   an.fftSize = 4096;
@@ -46,9 +68,7 @@ export async function listen(onPitch: (hz: number | null, level: number) => void
  * instead of a single pitch, so several notes at once can be read. Same mic rules as the tuner.
  */
 export async function listenSpectrum(onFrame: (db: Float32Array, sampleRate: number, level: number) => void): Promise<Listener> {
-  if (!navigator.mediaDevices?.getUserMedia) throw new Error("unavailable");
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-  const { ctx } = audio();
+  const { ctx, stream } = await openMic();
   const src = ctx.createMediaStreamSource(stream);
   const an = ctx.createAnalyser();
   an.fftSize = 16384; // fine enough to tell neighbouring low notes apart (about 3 Hz per step)
