@@ -29,7 +29,9 @@ export function Listen() {
   const [history, setHistory] = useState<string[]>([]);
   const mic = useRef<Listener | null>(null);
   const tracker = useRef(new ChordTracker(acc));
+  // a chord only goes in "You played" once it has held for about half a second, so the in-between names while one chord blends into the next are skipped
   const lastName = useRef<string | null>(null);
+  const held = useRef(0);
 
   useEffect(() => () => mic.current?.stop(), []);
   // a changed sharps/flats setting starts a fresh tracker
@@ -47,11 +49,15 @@ export function Listen() {
         const r = chromaFromDb(db, sampleRate);
         const h = tracker.current.update(r, loud);
         setHeard((prev) => (prev?.name === h?.name && prev?.alternatives.join() === h?.alternatives.join() ? prev : h));
-        if (h && h.name !== lastName.current) {
+        if (!h) {
+          lastName.current = null;
+          held.current = 0;
+        } else if (h.name !== lastName.current) {
           lastName.current = h.name;
+          held.current = 1;
+        } else if (++held.current === 5) {
           setHistory((p) => [h.name, ...p.filter((x) => x !== h.name)].slice(0, 8));
         }
-        if (!h) lastName.current = null;
       });
       setState("listening");
     } catch (e) {
@@ -63,6 +69,7 @@ export function Listen() {
     mic.current = null;
     tracker.current.reset();
     lastName.current = null;
+    held.current = 0;
     setHeard(null);
     setLevel(0);
     setState("idle");
