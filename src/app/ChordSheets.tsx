@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { findVoicings, SHAPE_KINDS, shapeKind, voicingFromFrets, type Voicing } from "../core/shapes";
-import { accidentalForKey, chordTones, identifyChord, noteName, parseChord } from "../core/theory";
+import { accidentalForKey, chordName, chordTones, identifyChord, noteName, parseChord } from "../core/theory";
 import { tuningName } from "../core/tunings";
 import { strum } from "../audio/guitar";
 import { ownerForNewRow } from "../data/auth";
@@ -9,6 +9,11 @@ import { ChordDiagram } from "../ui/ChordDiagram";
 import { IconPlay } from "../ui/icons";
 import { useOverlays } from "./overlays";
 import { usePrefs } from "./prefs";
+
+/** The most shapes the sheet will list for one chord (a chord has up to a few hundred). */
+const SHAPE_LIMIT = 800;
+/** Each group shows this many at first; "Show all" reveals the rest. */
+const FIRST_SHOWN = 9;
 
 /** Everything about one chord name: its shapes in this tuning, each one playable. (D5/D7) */
 export function ChordSheet({
@@ -26,21 +31,30 @@ export function ChordSheet({
 }) {
   const { open, close } = useOverlays();
   const prefs = usePrefs();
-  // every shape we can find, grouped the way players think about them (open, moveable, barre, high)
+  // The chord can be viewed over another bass note ("C" then "C/E"); the sheet's own name tracks that.
+  const base = parseChord(name);
+  const [bass, setBass] = useState<number | null>(null);
+  const [more, setMore] = useState<Record<string, boolean>>({});
+  const shown = bass !== null && base ? chordName({ ...base, bass }, accidentalForKey(name) === "flat" ? "flat" : "sharp") : name;
+  const acc = accidentalForKey(name);
+  // every shape there is, grouped the way players think about them (open, moveable, barre, high)
   const grouped = useMemo(() => {
-    const all = findVoicings(name, tuning, 24);
+    const all = findVoicings(shown, tuning, SHAPE_LIMIT);
     return SHAPE_KINDS.map((k) => ({ ...k, shapes: all.filter((s) => shapeKind(s) === k.id) })).filter((g) => g.shapes.length);
-  }, [name, tuning]);
+  }, [shown, tuning]);
   const shapes = useMemo(() => grouped.flatMap((g) => g.shapes), [grouped]);
-  const parsed = parseChord(name);
-  const spelled = parsed ? chordTones(parsed).map((pc) => noteName(pc, accidentalForKey(name))).join("  ") : "";
+  const index = useMemo(() => new Map(shapes.map((sh, i) => [sh, i] as const)), [shapes]);
+  const parsed = parseChord(shown);
+  const spelled = parsed ? chordTones(parsed).map((pc) => noteName(pc, acc)).join("  ") : "";
   const [sel, setSel] = useState(() => Math.max(0, current ? shapes.findIndex((s) => s.frets.join() === current.join()) : 0));
   const v = shapes[sel];
+  // bass choices: the other notes of the chord (not shown when the sheet is picking a shape for a chart)
+  const bassChoices = !onPick && base && !base.bass ? chordTones(base).filter((t) => t !== base.root) : [];
   return (
     <>
       <div className="sheet__head">
         <div>
-          <h2 className="sheet__title chordname">{name}</h2>
+          <h2 className="sheet__title chordname">{shown}</h2>
           <p className="row__sub">
             {tuningName(tuning)}
             {capo ? ` · capo ${capo}` : ""} · {shapes.length ? `${shapes.length} ${shapes.length === 1 ? "version" : "versions"}` : "no shape found"}
@@ -48,11 +62,23 @@ export function ChordSheet({
           {spelled && <p className="row__sub num">{spelled}</p>}
         </div>
         {v && (
-          <button className="ringbtn" aria-label={`Hear ${name}`} onClick={() => strum(v.frets, tuning, capo)}>
+          <button className="ringbtn" aria-label={`Hear ${shown}`} onClick={() => strum(v.frets, tuning, capo)}>
             <IconPlay />
           </button>
         )}
       </div>
+      {bassChoices.length > 0 && (
+        <div className="chips chips--wrap" role="group" aria-label="Bass note">
+          <button className="chip" aria-pressed={bass === null} onClick={() => (setBass(null), setSel(0))}>
+            Root position
+          </button>
+          {bassChoices.map((t) => (
+            <button key={t} className="chip" aria-pressed={bass === t} onClick={() => (setBass(t), setSel(0))}>
+              Over {noteName(t, acc)}
+            </button>
+          ))}
+        </div>
+      )}
       {shapes.length ? (
         grouped.map((g) => (
           <section key={g.id} className="shapegroup">
@@ -60,9 +86,9 @@ export function ChordSheet({
               {g.label} <span className="num">{g.shapes.length}</span>
             </h3>
             <p className="row__sub">{g.hint}</p>
-            <div className="shapes" role="radiogroup" aria-label={`${g.label} for ${name}`}>
-              {g.shapes.map((s) => {
-                const i = shapes.indexOf(s);
+            <div className="shapes" role="radiogroup" aria-label={`${g.label} for ${shown}`}>
+              {(more[g.id] ? g.shapes : g.shapes.slice(0, FIRST_SHOWN)).map((s) => {
+                const i = index.get(s) ?? 0;
                 return (
                   <button
                     key={s.frets.join()}
@@ -74,16 +100,21 @@ export function ChordSheet({
                       strum(s.frets, tuning, capo);
                     }}
                   >
-                    <ChordDiagram voicing={s} name={name} leftHanded={prefs.leftHanded} size={84} highlight={i === sel} />
+                    <ChordDiagram voicing={s} name={shown} leftHanded={prefs.leftHanded} size={84} highlight={i === sel} />
                     <span className="shape__frets num">{s.frets.map((f) => (f < 0 ? "x" : f)).join("")}</span>
                   </button>
                 );
               })}
             </div>
+            {g.shapes.length > FIRST_SHOWN && (
+              <button className="btn btn--ghost shapegroup__more" onClick={() => setMore((m) => ({ ...m, [g.id]: !m[g.id] }))}>
+                {more[g.id] ? "Show fewer" : `Show all ${g.shapes.length}`}
+              </button>
+            )}
           </section>
         ))
       ) : (
-        <p className="sheet__text">Gitara couldn't find a shape for this in {tuningName(tuning)}. Build it on the fretboard.</p>
+        <p className="sheet__text">Gitara couldn't find a shape for {shown} in {tuningName(tuning)}. Build it on the fretboard.</p>
       )}
       <div className="stack">
         {onPick && v && (

@@ -2805,22 +2805,154 @@ select.input {
   width: 24px;
   height: 24px;
 }
-.metro__beats {
+.metro__bar {
   display: flex;
   justify-content: center;
-  gap: var(--space-3);
+  align-items: stretch;
+  gap: 6px;
+  height: 92px;
 }
-.metro__dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--ink-3);
+.metro__pad {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 14px;
+  max-width: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: var(--ink-2);
+  color: var(--text-2);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
-.metro__dot[data-accent="true"] {
-  box-shadow: inset 0 0 0 2px rgb(236 239 241 / 0.5);
+.metro__pad[data-start="true"] {
+  margin-left: 8px;
 }
-.metro__dot[data-on="true"] {
+.metro__pad:active {
+  transform: scale(0.97);
+}
+.metro__fill {
+  display: block;
+  width: 56%;
+  border-radius: 3px;
+  background: #5b6a72;
+}
+.metro__pad[data-level="3"] .metro__fill {
+  height: 56px;
+  background: var(--text);
+}
+.metro__pad[data-level="2"] .metro__fill {
+  height: 38px;
+}
+.metro__pad[data-level="1"] .metro__fill {
+  height: 20px;
+}
+.metro__pad[data-level="0"] .metro__fill {
+  height: 4px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--text-2);
+}
+.metro__pad[data-on="true"] .metro__fill {
   background: var(--amber);
+  box-shadow: none;
+}
+.metro__bar[data-silent="true"] .metro__pad[data-on="true"] .metro__fill {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--amber);
+}
+.metro__n {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.metro__status {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  min-height: 1.25em;
+}
+.metro__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-2);
+}
+.metro__card {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  justify-items: start;
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-m);
+  background: var(--ink-2);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.metro__card:active {
+  transform: scale(0.97);
+}
+.metro__card[aria-pressed="true"] {
+  border-color: var(--amber);
+}
+.metro__cardtitle {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+.metro__cardnote {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+.metro__cards--rhythm {
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+}
+.metro__ticks {
+  width: 100%;
+  max-width: 96px;
+  height: 22px;
+  margin-bottom: 4px;
+}
+.metro__tickline {
+  stroke: #3d4b53;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.metro__tick {
+  fill: var(--text-2);
+}
+.metro__rcard[aria-pressed="true"] .metro__tick {
+  fill: var(--amber);
+}
+.metro__sub {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.metro__vol {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+}
+.metro__hint {
+  margin: var(--space-3) 0 0;
+  font-size: 0.8125rem;
+}
+.metro__keys {
+  display: none;
+}
+@media (hover: hover) and (min-width: 900px) {
+  .metro__keys {
+    display: block;
+  }
 }
 .metro__main {
   justify-content: center;
@@ -3942,4 +4074,82 @@ svg.icon:not([stroke]) {
 .chordlab__back::before {
   content: "\2190";
   margin-right: 0.4em;
+}
+
+.shapegroup__more {
+  justify-self: start;
+}
+/* five chooser tabs don't fit a phone: let the bar scroll sideways instead of squeezing the labels */
+.chordlab__bar .seg {
+  grid-auto-columns: max-content;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chordlab__bar .seg::-webkit-scrollbar {
+  display: none;
+}
+.chordlab__bar .seg__opt {
+  padding: 0 var(--space-3);
+  white-space: nowrap;
+}
+
+.chordlab__total {
+  margin: 0;
+  min-height: 1.4em;
+}
+.chordlab__index {
+  display: grid;
+  gap: 2px;
+}
+.chordrow {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: 12px;
+  background: var(--ink-1);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-hover) var(--ease-out);
+}
+.chordrow:active {
+  background: var(--ink-2);
+}
+@media (hover: hover) {
+  .chordrow:hover {
+    background: var(--ink-2);
+  }
+}
+.chordrow__name {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.chordrow__main {
+  display: grid;
+  min-width: 0;
+}
+.chordrow__long {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chordrow__notes,
+.chordrow__count {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+@media (min-width: 900px) {
+  .chordlab__index {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.metro > .chips {
+  margin: 0;
+  padding: 2px 0;
+  min-width: 0;
 }

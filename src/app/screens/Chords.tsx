@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { GUITAR_TUNINGS } from "../../core/instrument";
 import { familyForms, findVoicings, formLabel, formSuffix, moveShape, SHAPE_FAMILIES, type ShapeFamily, type Voicing } from "../../core/shapes";
-import { chordName, noteName, type Accidental } from "../../core/theory";
+import { chordName, mod12, noteName, QUALITIES, type Accidental } from "../../core/theory";
 import { Segmented, TopBar } from "../../ui/bits";
 import { ChordDiagram } from "../../ui/ChordDiagram";
 import { useNav } from "../nav";
@@ -99,7 +99,7 @@ const TYPES: { label: string; items: { suffix: string; chip: string; long: strin
 ];
 const LONG = new Map(TYPES.flatMap((g) => g.items.map((i) => [i.suffix, i.long] as const)));
 
-type Mode = "starter" | "key" | "type" | "barre";
+type Mode = "starter" | "key" | "type" | "barre" | "all";
 
 export function Chords() {
   const nav = useNav();
@@ -135,6 +135,7 @@ export function Chords() {
               { id: "key", label: "By key" },
               { id: "type", label: "By type" },
               { id: "barre", label: "Barre & power" },
+              { id: "all", label: "Everything" },
             ]}
           />
           <label className="chordlab__tuning">
@@ -202,6 +203,8 @@ export function Chords() {
             </section>
           </>
         )}
+
+        {mode === "all" && <EverythingView root={root} setRoot={setRoot} tuning={tuning} acc={acc} onOpen={openChord} />}
 
         {mode === "barre" && (
           <ShapesView
@@ -365,6 +368,82 @@ function ShapesView({
             </section>
           ))}
         </div>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Every chord Gitara knows, as an index: pick a root and all 36 types are listed with how many
+ * shapes each has. Tap one for every version (and every bass note) of it.
+ */
+function EverythingView({ root, setRoot, tuning, acc, onOpen }: { root: number; setRoot: (r: number) => void; tuning: readonly number[]; acc: Accidental; onOpen: (name: string) => void }) {
+  const rows = useMemo(
+    () =>
+      TYPES.map((g) => ({
+        label: g.label,
+        items: g.items.map((it) => {
+          const q = QUALITIES.find((x) => x.suffix === it.suffix)!;
+          const name = chordName({ root, quality: q }, acc);
+          return { name, long: it.long, notes: q.intervals.map((i) => noteName(mod12(root + i), acc)).join(" "), suffix: it.suffix };
+        }),
+      })),
+    [root, acc],
+  );
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  // shape counts are worked out a few at a time so the list appears instantly and fills in
+  useEffect(() => {
+    setCounts({});
+    let live = true;
+    const names = rows.flatMap((g) => g.items.map((i) => i.name));
+    let i = 0;
+    const step = () => {
+      if (!live) return;
+      const batch: Record<string, number> = {};
+      for (const n of names.slice(i, i + 4)) batch[n] = findVoicings(n, tuning, 800).length;
+      i += 4;
+      setCounts((c) => ({ ...c, ...batch }));
+      if (i < names.length) window.setTimeout(step, 0);
+    };
+    window.setTimeout(step, 0);
+    return () => {
+      live = false;
+    };
+  }, [rows, tuning]);
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const done = Object.keys(counts).length;
+
+  return (
+    <>
+      <p className="muted">All 36 chord types for any key. Tap a chord to see every shape for it, and every way to play it over a different bass note.</p>
+      <div className="chordlab__roots" role="group" aria-label="Key">
+        {ROOTS.map((r) => (
+          <button key={r} className="chip chordlab__root" aria-pressed={root === r} onClick={() => setRoot(r)}>
+            {noteName(r, acc)}
+          </button>
+        ))}
+      </div>
+      <p className="muted num chordlab__total" aria-live="polite">
+        {done < 36 ? "Counting shapes…" : `${noteName(root, acc)} has 36 chords and ${total.toLocaleString()} shapes`}
+      </p>
+      {rows.map((g) => (
+        <section key={g.label} className="chordlab__section">
+          <h2 className="h2">{g.label}</h2>
+          <ul className="list chordlab__index">
+            {g.items.map((it) => (
+              <li key={it.name}>
+                <button className="chordrow" onClick={() => onOpen(it.name)} aria-label={`${it.name}, ${it.long}${counts[it.name] !== undefined ? `, ${counts[it.name]} shapes` : ""}`}>
+                  <span className="chordrow__name chordname">{it.name}</span>
+                  <span className="chordrow__main">
+                    <span className="chordrow__long">{it.long}</span>
+                    <span className="chordrow__notes num">{it.notes}</span>
+                  </span>
+                  <span className="chordrow__count num">{counts[it.name] !== undefined ? `${counts[it.name]} shapes` : ""}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
     </>
   );
