@@ -3840,3 +3840,81 @@ svg.icon:not([stroke]) {
     max-width: 62rem;
   }
 }
+
+/* ============================================================ chord listener */
+.listen {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 34rem;
+  padding-bottom: var(--space-6);
+}
+.listen__stage {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  min-height: 14rem;
+  align-content: center;
+  padding: var(--space-6) var(--space-4) var(--space-5);
+  border-radius: var(--radius-l);
+  background: var(--ink-1);
+  text-align: center;
+  transition: background-color 200ms var(--ease-out);
+}
+.listen__stage[data-heard="true"] {
+  background: var(--ink-2);
+}
+.listen__name {
+  font-size: clamp(4rem, 22vw, 6.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.listen__name--idle {
+  font-size: clamp(1.75rem, 8vw, 2.5rem);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.listen__state {
+  color: var(--text-2);
+  font-weight: 600;
+}
+.listen__alt {
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+.listen__meter {
+  width: min(220px, 70%);
+  height: 4px;
+  margin-top: var(--space-3);
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ink-3);
+}
+.listen__meterfill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--amber);
+  transform-origin: left;
+  transition: transform 90ms linear;
+}
+.listen__shape {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+}
+.listen__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.listen__tip {
+  font-size: 0.875rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .listen__stage,
+  .listen__meterfill {
+    transition: none;
+  }
+}

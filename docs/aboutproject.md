@@ -481,6 +481,9 @@ Sources: en.wikipedia.org/wiki/Ultimate_Guitar · ultimate-guitar.com/article/bl
 ### 2026-11-04
 
 - **No lyrics, ever (for now).** After weighing licensed providers (quote-only pricing, out of reach for a free app), user-typed lyrics (the app would still host copyrighted text) and private notes (extra work), the owner chose to drop lyrics entirely and focus on the tools. Charts stay chords, sections and cue notes. A "Find lyrics" search shortcut was discussed and also dropped. Auto-filling charts from YouTube links was rejected (YouTube terms). Chord detection from audio the user owns is a possible later tool, not scheduled.
+- **Home is the tools page; Search is where songs live.** Home: Continue practising, all the tools, Up next. Only the Search page has a search bar (not the desktop top bar, not Library). `/` and Ctrl+K jump to Search.
+- **Chord finder is a browsable chart.** Starter chords by category, By key (every type for a root), By type (one type in 12 keys); tap a chord for all its versions, grouped open / moveable / barre / high. 15 extra chord types added (7b5, 7#9, 11, 13, 6/9 and so on). Any tuning.
+- **Chord listener (new tool):** play a chord, the app names it live from the mic (chromagram + chord templates, smoothed; on-device, nothing recorded). Same mic rules as the tuner. Accuracy on real guitars still needs testing by ear.
 - **Version counts on song rows:** every song row shows "N versions" or "No chart yet" under the title (phone and desktop).
 
 ### 2026-11-03

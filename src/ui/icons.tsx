@@ -42,6 +42,12 @@ export const IconTuner = () => (
     <path d="M8.5 3v7.5a3.5 3.5 0 0 0 7 0V3M12 14v7" />
   </Svg>
 );
+export const IconListen = () => (
+  <Svg>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" />
+  </Svg>
+);
 export const IconPlay = () => (
   <Svg filled>
     <path d="M8 5.2v13.6a.6.6 0 0 0 .9.5l11-6.8a.6.6 0 0 0 0-1L8.9 4.7a.6.6 0 0 0-.9.5z" />

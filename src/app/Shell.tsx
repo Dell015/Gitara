@@ -17,6 +17,7 @@ import { Chords } from "./screens/Chords";
 import { Collection } from "./screens/Collection";
 import { Home } from "./screens/Home";
 import { Library } from "./screens/Library";
+import { Listen } from "./screens/Listen";
 import { PlaylistScreen } from "./screens/Playlist";
 import { Search } from "./screens/Search";
 import { SongScreen } from "./screens/Song";
@@ -126,6 +127,8 @@ function Screen({ route }: { route: Route }) {
       return <Tuner />;
     case "chords":
       return <Chords />;
+    case "listen":
+      return <Listen />;
     case "metronome":
       return <Metronome />;
     case "jam":

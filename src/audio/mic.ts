@@ -40,3 +40,40 @@ export async function listen(onPitch: (hz: number | null, level: number) => void
     },
   };
 }
+
+/**
+ * Chord listening: like `listen`, but hands over the whole spectrum (in decibels) ten times a second
+ * instead of a single pitch, so several notes at once can be read. Same mic rules as the tuner.
+ */
+export async function listenSpectrum(onFrame: (db: Float32Array, sampleRate: number, level: number) => void): Promise<Listener> {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error("unavailable");
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const { ctx } = audio();
+  const src = ctx.createMediaStreamSource(stream);
+  const an = ctx.createAnalyser();
+  an.fftSize = 16384; // fine enough to tell neighbouring low notes apart (about 3 Hz per step)
+  an.smoothingTimeConstant = 0.4;
+  src.connect(an);
+  const spectrum = new Float32Array(an.frequencyBinCount);
+  const wave = new Float32Array(2048);
+  let raf = 0;
+  let last = 0;
+  const frame = (t: number) => {
+    raf = requestAnimationFrame(frame);
+    if (t - last < 100) return;
+    last = t;
+    an.getFloatFrequencyData(spectrum);
+    an.getFloatTimeDomainData(wave);
+    let peak = 0;
+    for (let i = 0; i < wave.length; i += 4) peak = Math.max(peak, Math.abs(wave[i]!));
+    onFrame(spectrum, ctx.sampleRate, peak);
+  };
+  raf = requestAnimationFrame(frame);
+  return {
+    stop() {
+      cancelAnimationFrame(raf);
+      src.disconnect();
+      stream.getTracks().forEach((tr) => tr.stop());
+    },
+  };
+}

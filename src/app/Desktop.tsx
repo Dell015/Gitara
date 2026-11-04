@@ -8,7 +8,7 @@ import { db } from "../data/local-db";
 import { Art } from "../ui/Art";
 import { warmthFor } from "../ui/artwork";
 import { HeatMark } from "../ui/HeatMark";
-import { IconBack, IconClose, IconGroup, IconJam, IconPerson, IconPractice, IconSongs, IconTuner } from "../ui/icons";
+import { IconBack, IconClose, IconGroup, IconJam, IconListen, IconPerson, IconPractice, IconSongs, IconTuner } from "../ui/icons";
 import { useNav } from "./nav";
 import { useOverlays } from "./overlays";
 import { useQueue } from "./queue";
@@ -106,6 +106,10 @@ export function RightPanel() {
         <button className="rtool" onClick={() => nav.push({ name: "chords" })}>
           <IconSongs />
           <span>Chords</span>
+        </button>
+        <button className="rtool" onClick={() => nav.push({ name: "listen" })}>
+          <IconListen />
+          <span>Listener</span>
         </button>
         <button className="rtool" onClick={() => nav.push({ name: "jam" })}>
           <IconGroup />

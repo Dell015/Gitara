@@ -18,6 +18,7 @@ export type Route =
   | { name: "version"; id: string; play?: boolean; fromQueue?: boolean }
   | { name: "tuner" }
   | { name: "chords" }
+  | { name: "listen" }
   | { name: "user"; id: string }
   | { name: "profile" }
   | { name: "admin" }

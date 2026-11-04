@@ -4,7 +4,7 @@ import { db } from "../../data/local-db";
 import { Art } from "../../ui/Art";
 import { warmthFor } from "../../ui/artwork";
 import { Empty } from "../../ui/bits";
-import { IconArrow, IconClose, IconGroup, IconJam, IconPlay, IconPractice, IconSongs, IconTuner } from "../../ui/icons";
+import { IconArrow, IconClose, IconGroup, IconJam, IconListen, IconPlay, IconPractice, IconSongs, IconTuner } from "../../ui/icons";
 import { LiveArt } from "../../ui/LiveArt";
 import { greeting, useLibrarySongs, usePlaylists } from "../hooks";
 import { useNav } from "../nav";
@@ -119,10 +119,15 @@ export function Home() {
                 <span className="tooltile__title">Chord finder</span>
                 <span className="tooltile__sub">Every chord, every key. Or place your fingers</span>
               </button>
-              <button className="tooltile tooltile--wide" onClick={() => nav.push({ name: "jam" })}>
+              <button className="tooltile" onClick={() => nav.push({ name: "listen" })}>
+                <IconListen />
+                <span className="tooltile__title">Chord listener</span>
+                <span className="tooltile__sub">Play a chord, see its name</span>
+              </button>
+              <button className="tooltile" onClick={() => nav.push({ name: "jam" })}>
                 <IconGroup />
                 <span className="tooltile__title">Jam with friends</span>
-                <span className="tooltile__sub">Everyone's songs become one setlist, with each person's part and capo</span>
+                <span className="tooltile__sub">One setlist for everyone</span>
               </button>
             </div>
           </section>
