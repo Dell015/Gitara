@@ -1,0 +1,208 @@
+# Gitara starter catalog.
+#
+# One song per block. Chords only, never lyrics.
+#
+#   == Title | Artist | Genre | Year | BPM | Capo | Check
+#
+# Year, BPM and Capo can be left empty. Genre is one of the fixed list (Pop, Rock, Folk, OPM...).
+# Check says how sure the chart is: "ok" = well known, "verify" = please check it by ear.
+#
+# Then one line per section:   Verse: G D | Am | G D | C
+#   - A line with no "|":  each chord is one bar.   Am F C G   = four bars
+#   - A line with "|":     bars are split by "|", and chords inside a bar share it evenly.
+#                          C G | Am F   = two bars, two chords each (2 beats per chord)
+#   - "." holds the chord for another beat slot, N.C. is a rest
+# And optionally the order:    Order: Verse x2, Chorus, Verse
+# Without "Order:" the sections play once each, top to bottom.
+#
+# A block with no sections is added to the catalog as a song with no chart yet: people can find it,
+# like it and add their own version. To contribute a chart, add section lines under the song.
+
+# ------------------------------------------------------------ English: simple beginner songs
+
+== Let It Be | The Beatles | Rock | 1970 | 72 | 0 | ok
+Verse: C G | Am F | C G | F C
+Chorus: Am G | F C | C G | F C
+Order: Verse, Chorus, Verse, Chorus
+
+== Hey Jude | The Beatles | Rock | 1968 | 74 | 0 | ok
+Verse: F C C7 F Bb F C F
+Outro: F Eb Bb F
+Order: Verse x2, Outro x2
+
+== Stand By Me | Ben E. King | R&B / Soul | 1961 | 118 | 0 | verify
+Verse: A F#m D E
+Order: Verse x4
+
+== No Woman, No Cry | Bob Marley & The Wailers | Reggae | 1974 | 78 | 0 | verify
+Verse: C G Am F
+Order: Verse x4
+
+== Take Me Home, Country Roads | John Denver | Country | 1971 | 82 | 0 | verify
+Verse: G Em D C G
+Chorus: G D Em C G D C G
+Order: Verse x2, Chorus
+
+== Knockin' on Heaven's Door | Bob Dylan | Folk | 1973 | | 0 | verify
+Verse: G D | Am | G D | C
+Order: Verse x2
+
+== Zombie | The Cranberries | Alternative | 1994 | 84 | 0 | ok
+Verse: Em C G D
+Order: Verse x4
+
+== Californication | Red Hot Chili Peppers | Rock | 1999 | 96 | 0 | verify
+Verse: Am F C G
+Order: Verse x4
+
+== Hotel California | Eagles | Rock | 1976 | 74 | 0 | ok
+Verse: Bm F# A E G D Em F#
+Order: Verse x2
+
+== Thinking Out Loud | Ed Sheeran | Pop | 2014 | 79 | 0 | verify
+Verse: D D/F# G A
+Order: Verse x4
+
+== Someone Like You | Adele | Pop | 2011 | 67 | 0 | verify
+Verse: A E F#m D
+Order: Verse x4
+
+== Count on Me | Bruno Mars | Pop | 2010 | | 0 | verify
+Verse: C Em F Am
+Order: Verse x4
+
+== Don't Look Back in Anger | Oasis | Rock | 1995 | | 0 | verify
+Verse: C G | Am E | F G | C
+Order: Verse x2
+
+== Wonderwall | Oasis | Rock | 1995 | 87 | 2 | verify
+Verse: Em7 G Dsus4 A7sus4
+Chorus: C D Em Em
+Order: Verse x4, Chorus x2
+
+== Wonderful World | Sam Cooke | R&B / Soul | 1960 | | 0 | ok
+Verse: C Am F G
+Order: Verse x2
+
+== Bad Moon Rising | Creedence Clearwater Revival | Rock | 1969 | | 0 | ok
+Verse: D A G D
+Order: Verse x4
+
+== Brown Eyed Girl | Van Morrison | Rock | 1967 | | 0 | verify
+Verse: G C G D
+Order: Verse x2
+
+== Jolene | Dolly Parton | Country | 1973 | | 0 | verify
+Verse: Am C G Am
+Order: Verse x4
+
+== Hey Joe | Jimi Hendrix | Rock | 1966 | | 0 | verify
+Verse: C G D A E
+Order: Verse x2
+
+== Wild Thing | The Troggs | Rock | 1966 | | 0 | verify
+Verse: A D E D
+Order: Verse x4
+
+== Louie Louie | The Kingsmen | Rock | 1963 | | 0 | verify
+Verse: A D Em D
+Order: Verse x4
+
+== Let Her Go | Passenger | Folk | 2012 | 75 | 0 | verify
+Verse: Am F C G
+Order: Verse x4
+
+== Horse with No Name | America | Folk | 1971 | | 0 | verify
+Verse: Em Dadd9
+Order: Verse x8
+
+# ------------------------------------------------------------ OPM: songs added without a chart yet
+# Add section lines under any of these to give it a chart (see the top of this file).
+
+== Ang Huling El Bimbo | Eraserheads | OPM
+== Pare Ko | Eraserheads | OPM
+== Ligaya | Eraserheads | OPM
+== With a Smile | Eraserheads | OPM
+== Overdrive | Eraserheads | OPM
+== Magasin | Eraserheads | OPM
+== Alapaap | Eraserheads | OPM
+== Toyang | Eraserheads | OPM
+== Harana | Parokya ni Edgar | OPM
+== Gitara | Parokya ni Edgar | OPM
+== Buloy | Parokya ni Edgar | OPM
+== Mr. Suave | Parokya ni Edgar | OPM
+== 214 | Rivermaya | OPM
+== Kisapmata | Rivermaya | OPM
+== Hinahanap-hanap Kita | Rivermaya | OPM
+== Ulan | Rivermaya | OPM
+== Anak | Freddie Aguilar | OPM
+== Magdalena | Freddie Aguilar | OPM
+== Kahit Maputi Na Ang Buhok Ko | Rey Valera | OPM
+== Awit ng Barkada | APO Hiking Society | OPM
+== Batang-Bata Ka Pa | APO Hiking Society | OPM
+== Torete | Moonstar88 | OPM
+== Migraine | Moonstar88 | OPM
+== Tadhana | Up Dharma Down | OPM
+== Hawak Kamay | Yeng Constantino | OPM
+== Ikaw | Yeng Constantino | OPM
+== Jeepney Love Story | Yeng Constantino | OPM
+== Kay Tagal Kitang Hinintay | Sponge Cola | OPM
+== Magkabilang Mundo | Callalily | OPM
+== Beer | Itchyworms | OPM
+== Sa Ngalan ng Pag-ibig | December Avenue | OPM
+== Eroplanong Papel | December Avenue | OPM
+== Kathang Isip | Ben&Ben | OPM
+== Araw-Araw | Ben&Ben | OPM
+== Maybe the Night | Ben&Ben | OPM
+== Pagtingin | Ben&Ben | OPM
+== The Day You Said Goodnight | Hale | OPM
+== Narda | Kamikazee | OPM
+== Akap | Imago | OPM
+== Pagdating ng Panahon | Aiza Seguerra | OPM
+== Bakit Ba Ikaw | Michael Wong | OPM
+== Hanggang Dito Na Lang | Jimmy Bondoc | OPM
+== Hanggang Kailan | Orange & Lemons | OPM
+== Upuan | Gloc-9 | OPM
+== Mundo | IV of Spades | OPM
+== Buwan | Juan Karlos | OPM
+== Ere | Juan Karlos | OPM
+== Kahit Ayaw Mo Na | This Band | OPM
+
+# ------------------------------------------------------------ OPM: more, from published lists (see the notes in the summary)
+# 80s and 90s classics
+== When I Met You | APO Hiking Society | OPM
+== Mr. Kupido | Rachel Alejandro | OPM
+== Babaero | Randy Santiago | OPM
+== Till I Met You | Kuh Ledesma | OPM
+== Ikaw Lamang | Zsa Zsa Padilla | OPM
+== Forevermore | Side A | OPM
+== Christmas in Our Hearts | Jose Mari Chan | OPM
+== Bakit Pa | Jessa Zaragoza | OPM
+
+# 2000s
+== Kung Ako Na Lang Sana | Bituin Escalante | OPM
+== Tell Me Where It Hurts | MYMP | OPM
+== Jopay | Mayonnaise | OPM
+== Huwag Na Huwag Mong Sasabihin | Kitchie Nadal | OPM
+== How Did You Know | Gary Valenciano | OPM
+== Burnout | Sugarfree | OPM
+== Jeepney | Sponge Cola | OPM
+== Noypi | Bamboo | OPM
+== Bakit Pa Ba | Jay R | OPM
+== Rainbow | South Border | OPM
+== Sundo | Imago | OPM
+
+# 2010s to now
+== Randomantic | James Reid | OPM
+== Kung 'Di Rin Lang Ikaw | December Avenue & Moira Dela Torre | OPM
+== Tala | Sarah Geronimo | OPM
+== Go Up | SB19 | OPM
+== Pasilyo | Sunkissed Lola | OPM
+== Raining in Manila | Lola Amour | OPM
+== Pantropiko | BINI | OPM
+== Multo | Cup of Joe | OPM
+== Sining | Dionela & Jay R | OPM
+== Marilag | Dionela | OPM
+== Tibok | Earl Agustin | OPM
+== Sa Bawat Sandali | Amiel Sol | OPM
+== My Day | Hellmerry | OPM

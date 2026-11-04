@@ -5,6 +5,7 @@
  */
 import type { JamMember, OfferSong, SetItem } from "../core/jam";
 import { songRef } from "../core/jam";
+import { transposeKey } from "../core/theory";
 import { currentUserId } from "./auth";
 import { OfflineError, myProfile } from "./community";
 import { db } from "./local-db";
@@ -64,7 +65,8 @@ export async function buildMyOffer(): Promise<OfferSong[]> {
       status: e.status,
       parts: e.canPlay,
       sing: e.canSing,
-      key: v?.keyPlayed ?? song.originalKey,
+      // keyPlayed is the key of the shapes on the page; with a capo the sound is higher by that many semitones
+      key: v?.keyPlayed ? transposeKey(v.keyPlayed, v.capo) : song.originalKey,
       capo: v?.capo ?? 0,
       bpm: v?.bpm ?? song.originalBpm,
       sec: song.durationSec,

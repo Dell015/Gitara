@@ -324,11 +324,17 @@ a.btn {
   white-space: nowrap;
 }
 .srow__sub {
+  display: flex;
+  min-width: 0;
   color: var(--text-2);
   font-size: 0.875rem;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+.srow__artist {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .srow__icon {
   display: grid;
@@ -3702,4 +3708,21 @@ svg.icon:not([stroke]) {
   .setrow__more {
     padding-left: calc(var(--space-4) + 2rem + var(--space-3));
   }
+}
+
+.srow__vers {
+  flex: none;
+  white-space: nowrap;
+}
+.srow__vers::before {
+  content: "\00b7";
+  margin: 0 0.4em;
+}
+.srow__vers[data-none] {
+  opacity: 0.65;
+}
+
+.srow__phonemeta {
+  flex: none;
+  margin-left: 0.25em;
 }

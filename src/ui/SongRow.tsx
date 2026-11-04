@@ -11,6 +11,7 @@ import { IconHeart, IconMore, IconPlaylists } from "./icons";
  */
 export function SongRow({
   song,
+  versions,
   liked,
   status,
   onOpen,
@@ -21,6 +22,8 @@ export function SongRow({
   trail,
 }: {
   song: Song;
+  /** How many chord versions it has (undefined while still counting). */
+  versions?: number;
   liked: boolean;
   status?: LearnStatus | null;
   onOpen: () => void;
@@ -34,6 +37,7 @@ export function SongRow({
   const el = useRef<HTMLDivElement>(null);
   const g = useRef<{ x: number; y: number; dx: number; lock: "x" | "y" | null; t?: number; long: boolean } | null>(null);
 
+  const versionsLabel = versions === undefined ? "" : versions === 0 ? "No chart yet" : versions === 1 ? "1 version" : `${versions} versions`;
   const extra = [song.originalKey, song.originalBpm ? `${song.originalBpm} bpm` : undefined].filter(Boolean).join(" · ");
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -110,7 +114,8 @@ export function SongRow({
         >
           <span className="srow__title">{song.title}</span>
           <span className="srow__sub num">
-            {song.artist}
+            <span className="srow__artist">{song.artist}</span>
+            {versionsLabel && <span className="srow__vers" data-none={versions === 0 || undefined}>{versionsLabel}</span>}
             {extra && <span className="srow__phonemeta"> · {extra}</span>}
           </span>
         </button>

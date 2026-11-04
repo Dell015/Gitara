@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Song } from "../core/model";
 import { db } from "../data/local-db";
 import * as repo from "../data/repo";
+import { useRemoteVersionCount } from "../data/versionCounts";
 import { SongRow } from "../ui/SongRow";
 import { useNav } from "./nav";
 import { useOverlays } from "./overlays";
@@ -14,9 +15,14 @@ export function ConnectedSongRow({ song, playlistItemId, lead, trail, onOpen }: 
   const { open, showToast } = useOverlays();
   const entry = useLiveQuery(() => db.library.get(song.id), [song.id]);
   const liked = !!entry;
+  // what's on this device (yours and cached) or in the cloud (public + yours), whichever is more
+  const local = useLiveQuery(() => db.versions.where("songId").equals(song.id).count(), [song.id]);
+  const remote = useRemoteVersionCount(song.id);
+  const versions = local === undefined && remote === undefined ? undefined : Math.max(local ?? 0, remote ?? 0);
   return (
     <SongRow
       song={song}
+      versions={versions}
       liked={liked}
       status={entry?.status}
       lead={lead}
