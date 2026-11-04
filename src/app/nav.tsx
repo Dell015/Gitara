@@ -4,6 +4,7 @@
  * Kept in sessionStorage so a reload doesn't lose your place.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { VersionPart } from "../core/model";
 
 export type Tab = "home" | "search" | "library";
 
@@ -27,7 +28,7 @@ export type Route =
   | { name: "metronome" }
   | { name: "jam"; code?: string }
   | { name: "jamRoom"; id: string }
-  | { name: "editVersion"; songId: string; id?: string }
+  | { name: "editVersion"; songId: string; id?: string; part?: VersionPart }
   | { name: "browse"; genre: string }
   | { name: "addSong"; title?: string; artist?: string; editId?: string };
 

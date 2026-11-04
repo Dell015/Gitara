@@ -136,6 +136,7 @@ function SongMenu({ songId, playlistItemId }: { songId: string; playlistItemId?:
   const nav = useNav();
   const song = useLiveQuery(() => db.songs.get(songId), [songId]);
   const entry = useLiveQuery(() => db.library.get(songId), [songId]);
+  const versionCount = useLiveQuery(() => db.versions.where("songId").equals(songId).count(), [songId]);
   if (!song) return null;
   const liked = !!entry;
 
@@ -153,15 +154,22 @@ function SongMenu({ songId, playlistItemId }: { songId: string; playlistItemId?:
   return (
     <>
       <SheetHead title={song.title} sub={song.artist} />
-      <div className="menu-block">
-        <p className="menu-label">How well you know it</p>
-        <Segmented
-          label="Status"
-          options={STATUS_OPTIONS}
-          value={entry?.status ?? "none"}
-          onChange={(v) => void repo.setStatus(songId, v === "none" ? null : v)}
-        />
-      </div>
+      {versionCount === 0 ? (
+        <div className="menu-block">
+          <p className="menu-label">How well you know it</p>
+          <Segmented
+            label="Status"
+            options={STATUS_OPTIONS}
+            value={entry?.status ?? "none"}
+            onChange={(v) => void repo.setStatus(songId, v === "none" ? null : v)}
+          />
+        </div>
+      ) : versionCount ? (
+        <div className="menu-block">
+          <p className="menu-label">How well you know it</p>
+          <p className="muted">Set Learning or Performing on each version of the song, on the song page.</p>
+        </div>
+      ) : null}
       {liked && (
         <div className="menu-block">
           <p className="menu-label">Parts you can play</p>

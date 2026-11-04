@@ -5,9 +5,9 @@
  */
 import Dexie, { type EntityTable } from "dexie";
 import type { Track } from "../core/drums";
-import type { LibraryEntry, Playlist, PlaylistItem, Shape, Song, Version } from "../core/model";
+import type { LibraryEntry, Playlist, PlaylistItem, Shape, Song, Version, VersionProgress } from "../core/model";
 
-export type SyncedTable = "songs" | "versions" | "tracks" | "library" | "playlists" | "playlistItems";
+export type SyncedTable = "songs" | "versions" | "tracks" | "library" | "playlists" | "playlistItems" | "progress";
 
 export interface OutboxEntry {
   seq?: number; // auto-increment
@@ -37,6 +37,7 @@ export class GitaraDB extends Dexie {
   outbox!: EntityTable<OutboxEntry, "seq">;
   recents!: EntityTable<RecentEntry, "key">;
   tracks!: EntityTable<Track, "id">;
+  progress!: EntityTable<VersionProgress, "versionId">;
 
   constructor() {
     super("gitara");
@@ -66,6 +67,45 @@ export class GitaraDB extends Dexie {
     this.version(4).stores({
       tracks: "id, songId, ownerId, updatedAt",
     });
+    // v5: every version has a part (Rhythm, Lead, Solo, Fingerstyle) and its own Learning / Performing status.
+    this.version(5)
+      .stores({
+        progress: "versionId, songId, status, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const versions = tx.table("versions");
+        const lib = tx.table("library");
+        const progress = tx.table("progress");
+        const outbox = tx.table("outbox");
+        const ts = new Date().toISOString();
+        const touched: string[] = [];
+        // existing versions: Rhythm (or Fingerstyle if they were tagged that way)
+        await versions.toCollection().modify((v: Version & { tags?: string[] }) => {
+          if (!v.part) {
+            v.part = v.tags?.includes("fingerstyle") ? "fingerstyle" : "rhythm";
+            if (v.authorId) touched.push(v.id);
+          }
+        });
+        // the status you had on a song moves onto the version you opened first (else its oldest version)
+        for (const e of (await lib.toArray()) as LibraryEntry[]) {
+          if (!e.status) continue;
+          const vs = ((await versions.where("songId").equals(e.songId).toArray()) as Version[]).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          const pick = vs.find((v) => v.id === e.preferredVersionId) ?? vs[0];
+          await lib.update(e.songId, { statuses: [e.status] });
+          if (!pick) continue; // no chart yet: the song keeps its status until one exists
+          await progress.put({
+            versionId: pick.id,
+            songId: e.songId,
+            status: e.status,
+            startedLearningAt: e.startedLearningAt,
+            startedPerformingAt: e.startedPerformingAt,
+            createdAt: ts,
+            updatedAt: ts,
+          });
+          await outbox.add({ table: "progress", op: "upsert", rowId: pick.id, createdAt: Date.now() });
+        }
+        for (const id of touched) await outbox.add({ table: "versions", op: "upsert", rowId: id, createdAt: Date.now() });
+      });
   }
 }
 

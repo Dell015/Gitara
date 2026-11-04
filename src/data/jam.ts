@@ -54,7 +54,11 @@ export async function buildMyOffer(): Promise<OfferSong[]> {
     const song = await db.songs.get(e.songId);
     if (!song) continue;
     const versions = await db.versions.where("songId").equals(song.id).toArray();
+    const prog = await db.progress.where("songId").equals(song.id).toArray();
+    const rank = (id: string) => (prog.find((p) => p.versionId === id)?.status === "performing" ? 2 : prog.find((p) => p.versionId === id) ? 1 : 0);
+    const ranked = [...versions].sort((x, y) => rank(y.id) - rank(x.id))[0];
     const v =
+      (ranked && rank(ranked.id) > 0 ? ranked : undefined) ??
       versions.find((x) => x.id === e.preferredVersionId) ??
       versions.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)).find((x) => x.instrumentId === "guitar") ??
       versions[0];

@@ -2,6 +2,7 @@
  * Desktop-only pieces (shown from 900px wide, like Spotify desktop):
  * the top bar (back, search everywhere, account) and the right panel (wide screens).
  */
+import { entryStatuses } from "../core/model";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { db } from "../data/local-db";
@@ -64,7 +65,7 @@ export function RightPanel() {
   });
   const queued = useLiveQuery(async () => (await db.songs.bulkGet(items.slice(0, 6).map((i) => i.songId))).map((s, k) => ({ item: items[k]!, song: s })), [items]);
   const rows = useLiveQuery(async () => {
-    const entries = (await db.library.toArray()).filter((e) => e.status === "learning");
+    const entries = (await db.library.toArray()).filter((e) => entryStatuses(e).includes("learning"));
     const songs = await db.songs.bulkGet(entries.map((e) => e.songId));
     return entries.map((e, i) => ({ e, s: songs[i] })).filter((x) => !!x.s).slice(0, 6);
   });

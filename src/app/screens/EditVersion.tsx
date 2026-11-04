@@ -5,7 +5,7 @@ import { playChart, type Playback, type PlayPosition } from "../../audio/player"
 import { beatsPerBar, DEFAULT_STRUM, formatBars, NO_CHORD, parseBars, playOrder } from "../../core/chart";
 import { TIME_SIGNATURES, KEYS } from "../../core/genres";
 import { GUITAR, GUITAR_TUNINGS } from "../../core/instrument";
-import { VERSION_TAGS, type ArrangementItem, type SectionKind, type StrumStep, type VersionContent, type VersionTag, type Visibility } from "../../core/model";
+import { PART_HINT, PART_LABEL, VERSION_PARTS, VERSION_TAGS, type VersionPart, type ArrangementItem, type SectionKind, type StrumStep, type VersionContent, type VersionTag, type Visibility } from "../../core/model";
 import { findVoicings } from "../../core/shapes";
 import { TapTempo } from "../../core/tempo";
 import { suggestKey, transposeKey } from "../../core/theory";
@@ -16,6 +16,7 @@ import * as repo from "../../data/repo";
 import { Segmented, TopBar } from "../../ui/bits";
 import { StrumGlyph } from "../../ui/ChordDiagram";
 import { IconPause, IconPlay, IconPlus } from "../../ui/icons";
+import { VideoPanel } from "../../ui/VideoPanel";
 import { useNav } from "../nav";
 import { useOverlays } from "../overlays";
 import { KIND_LABEL, Stepper } from "./Version";
@@ -30,6 +31,8 @@ interface EditSection {
 }
 
 interface Draft {
+  part: VersionPart;
+  youtubeUrl: string;
   label: string;
   tuning: number[];
   capo: number;
@@ -47,7 +50,7 @@ interface Draft {
 
 const KINDS: SectionKind[] = ["intro", "verse", "pre-chorus", "chorus", "bridge", "solo", "interlude", "outro", "custom"];
 const TECHNIQUES = ["Barre chords", "Power chords", "Palm muting", "Fingerpicking", "Hammer-ons", "Slides"];
-const TAG_LABEL: Record<VersionTag, string> = { cover: "Cover", live: "Live", acoustic: "Acoustic", original: "Original", simplified: "Simplified", fingerstyle: "Fingerstyle" };
+const TAG_LABEL: Record<VersionTag, string> = { cover: "Cover", live: "Live", acoustic: "Acoustic", original: "Original", simplified: "Simplified" };
 const NEXT: StrumStep[] = ["D", "U", "-", "x"];
 const sid = () => Math.random().toString(36).slice(2, 9);
 
@@ -61,7 +64,7 @@ function nextKind(sections: EditSection[]): SectionKind {
 }
 
 /** Writing or changing the chords of a version (D4). Works offline; nothing is lost if you leave. */
-export function EditVersion({ songId, id }: { songId: string; id?: string }) {
+export function EditVersion({ songId, id, part }: { songId: string; id?: string; part?: VersionPart }) {
   const nav = useNav();
   const { open, showToast } = useOverlays();
   const song = useLiveQuery(() => db.songs.get(songId), [songId]);
@@ -75,6 +78,9 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
   const [pos, setPos] = useState<PlayPosition | null>(null);
   const playback = useRef<Playback | null>(null);
   const tapper = useRef(new TapTempo());
+  const [step, setStep] = useState(0);
+  const [secId, setSecId] = useState<string | null>(null);
+  const [strumSecId, setStrumSecId] = useState<string | null>(null);
 
   // load: saved draft (if newer) → the version → a fresh one
   useEffect(() => {
@@ -89,6 +95,8 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
       if (!existing) return null;
       const bpb = beatsPerBar(existing.timeSignature ?? song?.timeSignature);
       return {
+        part: existing.part,
+        youtubeUrl: existing.youtubeUrl ?? "",
         label: existing.label ?? "",
         tuning: [...existing.tuning],
         capo: existing.capo,
@@ -113,13 +121,15 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
     };
     const base = fromVersion();
     if (saved && (!base || saved.savedAt > base.savedAt)) {
-      setD(saved);
+      setD({ ...saved, part: saved.part ?? part ?? "rhythm", youtubeUrl: saved.youtubeUrl ?? "" });
       setRestored(true);
       return;
     }
     if (base) return setD(base);
     const first: EditSection = { id: sid(), kind: "verse", label: "", text: "", strum: [...DEFAULT_STRUM], note: "" };
     setD({
+      part: part ?? "rhythm",
+      youtubeUrl: "",
       label: "",
       tuning: [...GUITAR.standardTuning],
       capo: 0,
@@ -193,6 +203,7 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
   const addSection = () => {
     const s: EditSection = { id: sid(), kind: nextKind(d.sections), label: "", text: "", strum: [...(d.sections[d.sections.length - 1]?.strum ?? DEFAULT_STRUM)], note: "" };
     set({ sections: [...d.sections, s], arrangement: [...d.arrangement, { sectionId: s.id, repeat: 1 }] });
+    setSecId(s.id);
   };
   const removeSection = (sidv: string) => set({ sections: d.sections.filter((s) => s.id !== sidv), arrangement: d.arrangement.filter((a) => a.sectionId !== sidv) });
   const duplicateSection = (s: EditSection) => {
@@ -201,6 +212,7 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
     const sections = [...d.sections];
     sections.splice(i + 1, 0, c);
     set({ sections, arrangement: [...d.arrangement, { sectionId: c.id, repeat: 1 }] });
+    setSecId(c.id);
   };
   const moveArr = (i: number, dir: -1 | 1) => {
     const a = [...d.arrangement];
@@ -249,6 +261,8 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
     const draft: repo.VersionDraft = {
       id,
       songId,
+      part: d.part,
+      youtubeUrl: d.youtubeUrl.trim() || undefined,
       instrumentId: "guitar",
       tuning: d.tuning,
       capo: d.capo,
@@ -289,6 +303,42 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
 
   const tuningOptions = GUITAR_TUNINGS.some((t) => t.tuning.every((m, i) => m === d.tuning[i])) ? GUITAR_TUNINGS : [...GUITAR_TUNINGS, { id: "custom", name: tuningName(d.tuning), tuning: d.tuning }];
 
+
+  const STEPS = ["Basics", "Chords", "Strumming", "Order", "Review"] as const;
+  const cur = d.sections.find((x) => x.id === secId) ?? d.sections[0]!;
+  const curStrum = d.sections.find((x) => x.id === strumSecId) ?? d.sections[0]!;
+  const barsCount = content.sections.reduce((n, x) => n + x.bars.length, 0);
+  const videoUrl = d.youtubeUrl.trim() || song.youtubeUrl;
+  const goto = (n: number) => {
+    playback.current?.stop();
+    playback.current = null;
+    setStep(Math.max(0, Math.min(STEPS.length - 1, n)));
+    window.scrollTo?.({ top: 0 });
+  };
+
+  const sectionPills = (activeId: string, pick: (id: string) => void, withAdd?: boolean) => (
+    <div className="chips chips--wrap esteps__secs" role="tablist" aria-label="Sections">
+      {d.sections.map((x) => (
+        <button key={x.id} role="tab" className="chip" aria-selected={x.id === activeId} aria-pressed={x.id === activeId} onClick={() => pick(x.id)}>
+          {nameOf(x)}
+          {withAdd && !(parsed.get(x.id)?.bars.length) ? " ·" : ""}
+        </button>
+      ))}
+      {withAdd && (
+        <button
+          className="chip"
+          onClick={() => {
+            addSection();
+          }}
+        >
+          <IconPlus /> Section
+        </button>
+      )}
+    </div>
+  );
+
+  const cp = parsed.get(cur.id);
+
   return (
     <>
       <TopBar
@@ -298,16 +348,22 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
           nav.back();
         }}
         title={id ? "Edit version" : "New version"}
-        right={
-          <button className="btn btn--primary btn--sm" onClick={() => void save()} disabled={saving}>
-            Save
-          </button>
-        }
       />
       <header className="page-head">
         <p className="muted">{song.artist}</p>
         <h1 className="page-title page-title--sm">{song.title}</h1>
       </header>
+
+      <ol className="esteps" aria-label="Steps">
+        {STEPS.map((name, i) => (
+          <li key={name} className="esteps__item" data-state={i === step ? "now" : i < step ? "done" : "todo"}>
+            <button className="esteps__btn" aria-current={i === step ? "step" : undefined} onClick={() => goto(i)}>
+              <span className="esteps__n num">{i + 1}</span>
+              <span className="esteps__name">{name}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
 
       {restored && (
         <div className="notice">
@@ -331,248 +387,317 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
         </div>
       )}
 
-      <section className="block">
-        <h2 className="h2">Sections</h2>
-        <p className="muted">
-          Type the chords, one per bar: <span className="kbdtext">Am F C G</span>. Put two in a bar with a bar line: <span className="kbdtext">Am C | F G</span>. A dot holds a chord one more beat:{" "}
-          <span className="kbdtext">Am . . F</span>.
-        </p>
-        {d.sections.map((s) => {
-          const p = parsed.get(s.id);
-          return (
-            <div className="esec" key={s.id}>
-              <div className="esec__head">
-                <select className="input input--sm" value={s.kind} onChange={(e) => setSection(s.id, { kind: e.target.value as SectionKind })} aria-label="Section type">
-                  {KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {KIND_LABEL[k]}
-                    </option>
-                  ))}
-                </select>
-                <input className="input input--sm" value={s.label} onChange={(e) => setSection(s.id, { label: e.target.value })} placeholder="Name (optional), e.g. Verse 2" maxLength={40} aria-label="Section name" />
-              </div>
-              <textarea
-                className="input esec__chords"
-                value={s.text}
-                onChange={(e) => setSection(s.id, { text: e.target.value })}
-                placeholder="Am F C G"
-                rows={2}
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                aria-label={`${nameOf(s)} chords`}
-              />
-              {p && p.unknown.length > 0 && <p className="field__error">Not chords: {p.unknown.join(", ")}. Check the spelling, or write N.C. for no chord.</p>}
-              {p && p.bars.length > 0 && (
-                <ol className="bars bars--mini" aria-label="Bars">
-                  {p.bars.map((b, bi) => {
-                    const on = !!pos && playOrder(content)[pos.part]?.id === s.id && pos.bar === bi;
-                    return (
-                      <li key={bi} className="cbar" data-on={on}>
-                        {b.chords.map((c, ci) => (
-                          <button
-                            key={ci}
-                            className="cbar__chord chordname"
-                            style={{ flexGrow: c.beats }}
-                            onClick={() =>
-                              c.name !== NO_CHORD &&
-                              open({
-                                kind: "chord",
-                                name: c.name,
-                                tuning: d.tuning,
-                                capo: d.capo,
-                                current: d.voicings[c.name]?.frets,
-                                onPick: (vv) => set({ voicings: { ...d.voicings, [c.name]: { frets: vv.frets, fingers: vv.fingers, baseFret: vv.baseFret } } }),
-                              })
-                            }
-                          >
-                            {c.name}
-                          </button>
-                        ))}
-                      </li>
-                    );
-                  })}
-                </ol>
+      {step === 0 && (
+        <section className="block">
+          <h2 className="h2">What are you adding?</h2>
+          <div className="parttabs" role="radiogroup" aria-label="Part of the song">
+            {VERSION_PARTS.map((p) => (
+              <button key={p} role="radio" aria-checked={d.part === p} className="parttab" aria-selected={d.part === p} onClick={() => set({ part: p })}>
+                {PART_LABEL[p]}
+              </button>
+            ))}
+          </div>
+          <p className="parthint">{PART_HINT[d.part]}</p>
+          <div className="form__grid">
+            <label className="field field--wide">
+              <span className="field__label">Name of this version (optional)</span>
+              <input className="input" value={d.label} onChange={(e) => set({ label: e.target.value })} placeholder="e.g. Easy version, Live 2019" maxLength={60} />
+            </label>
+            <label className="field">
+              <span className="field__label">Tuning</span>
+              <select
+                className="input"
+                value={tuningOptions.find((t) => t.tuning.every((m, i) => m === d.tuning[i]))?.id}
+                onChange={(e) => set({ tuning: [...tuningOptions.find((t) => t.id === e.target.value)!.tuning] })}
+              >
+                {tuningOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="field">
+              <span className="field__label">Capo</span>
+              <Stepper label="Capo" value={d.capo ? String(d.capo) : "None"} onDown={() => set({ capo: Math.max(0, d.capo - 1) })} onUp={() => set({ capo: Math.min(12, d.capo + 1) })} />
+            </div>
+            <div className="field">
+              <span className="field__label">Key (as it sounds)</span>
+              <select className="input" value={d.keyPlayed} onChange={(e) => set({ keyPlayed: e.target.value })}>
+                <option value="">{suggested ? `Suggested: ${suggested}` : "Not set"}</option>
+                {KEYS.map((k) => (
+                  <option key={k}>{k}</option>
+                ))}
+              </select>
+              {suggested && d.keyPlayed !== suggested && (
+                <button className="link" onClick={() => set({ keyPlayed: suggested })}>
+                  Use {suggested} (from the chords{d.capo ? ` and capo ${d.capo}` : ""})
+                </button>
               )}
-              <div className="esec__strum">
-                <span className="field__label">Strum</span>
-                <div className="strumedit" role="group" aria-label="Strumming pattern">
-                  {s.strum.map((st, k) => (
-                    <button
-                      key={k}
-                      className="strumedit__step"
-                      aria-label={`Step ${k + 1}: ${st === "D" ? "down" : st === "U" ? "up" : st === "x" ? "muted" : "rest"}`}
-                      onClick={() => {
-                        const steps = [...s.strum];
-                        steps[k] = NEXT[(NEXT.indexOf(st) + 1) % NEXT.length]!;
-                        setSection(s.id, { strum: steps });
-                      }}
-                    >
-                      <StrumGlyph step={st} />
-                    </button>
-                  ))}
-                </div>
+            </div>
+            <div className="field">
+              <span className="field__label">Tempo (bpm)</span>
+              <div className="inline">
+                <input className="input num" inputMode="numeric" value={d.bpm} onChange={(e) => set({ bpm: e.target.value.replace(/\D/g, "").slice(0, 3) })} aria-label="Tempo in beats per minute" />
                 <button
-                  className="iconbtn iconbtn--plain"
-                  aria-label="Hear this pattern"
-                  onClick={() => {
-                    const first = p?.bars[0]?.chords[0]?.name;
-                    const f = first && first !== NO_CHORD ? d.voicings[first]?.frets ?? findVoicings(first, d.tuning, 1)[0]?.frets : null;
-                    if (!f) return showToast("Add a chord to hear the pattern");
-                    const { ctx } = audio();
-                    const stepSec = (60 / (Number(d.bpm) || 90)) * (bpb / s.strum.length);
-                    s.strum.forEach((st, k) => strumStep(st, f, d.tuning, d.capo, ctx.currentTime + 0.05 + k * stepSec, stepSec * 2, k === 0));
+                  type="button"
+                  className="btn btn--secondary tapbtn"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    const b = tapper.current.tap(e.timeStamp);
+                    if (b) set({ bpm: String(b) });
                   }}
                 >
-                  <IconPlay />
+                  Tap
                 </button>
-              </div>
-              <input className="input input--sm" value={s.note} onChange={(e) => setSection(s.id, { note: e.target.value })} placeholder="Cue note (optional), e.g. after the drum fill" maxLength={120} aria-label="Cue note" />
-              <div className="esec__actions">
-                <button className="link" onClick={() => duplicateSection(s)}>
-                  Duplicate
-                </button>
-                {d.sections.length > 1 && (
-                  <button className="link link--danger" onClick={() => removeSection(s.id)}>
-                    Remove
-                  </button>
-                )}
               </div>
             </div>
-          );
-        })}
-        <button className="btn btn--secondary" onClick={addSection}>
-          <IconPlus /> Add a section
-        </button>
-      </section>
-
-      <section className="block">
-        <h2 className="h2">Song order</h2>
-        <p className="muted">The order the sections are played in. A section can come back as many times as you like without typing it again.</p>
-        <ol className="arr">
-          {d.arrangement.map((a, i) => {
-            const s = d.sections.find((x) => x.id === a.sectionId);
-            if (!s) return null;
-            return (
-              <li key={`${a.sectionId}-${i}`} className="arr__item">
-                <span className="arr__name">{nameOf(s)}</span>
-                <Stepper
-                  label="Times"
-                  value={`×${a.repeat}`}
-                  onDown={() => set({ arrangement: d.arrangement.map((x, j) => (j === i ? { ...x, repeat: Math.max(1, x.repeat - 1) } : x)) })}
-                  onUp={() => set({ arrangement: d.arrangement.map((x, j) => (j === i ? { ...x, repeat: Math.min(16, x.repeat + 1) } : x)) })}
-                />
-                <button className="iconbtn iconbtn--plain" aria-label="Move earlier" onClick={() => moveArr(i, -1)} disabled={i === 0}>
-                  <svg viewBox="0 0 24 24" width="20" height="20" className="icon" aria-hidden="true">
-                    <path d="M6 14.5l6-6 6 6" />
-                  </svg>
-                </button>
-                <button className="iconbtn iconbtn--plain" aria-label="Move later" onClick={() => moveArr(i, 1)} disabled={i === d.arrangement.length - 1}>
-                  <svg viewBox="0 0 24 24" width="20" height="20" className="icon" aria-hidden="true">
-                    <path d="M6 9.5l6 6 6-6" />
-                  </svg>
-                </button>
-                <button className="link link--danger" onClick={() => set({ arrangement: d.arrangement.filter((_, j) => j !== i) })}>
-                  Remove
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-        <div className="chips chips--wrap">
-          {d.sections.map((s) => (
-            <button key={s.id} className="chip" onClick={() => set({ arrangement: [...d.arrangement, { sectionId: s.id, repeat: 1 }] })}>
-              <IconPlus /> {nameOf(s)}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="block">
-        <h2 className="h2">Details</h2>
-        <div className="form__grid">
-          <label className="field field--wide">
-            <span className="field__label">Name of this version (optional)</span>
-            <input className="input" value={d.label} onChange={(e) => set({ label: e.target.value })} placeholder="e.g. Easy version, Live 2019" maxLength={60} />
-          </label>
-          <label className="field">
-            <span className="field__label">Tuning</span>
-            <select
-              className="input"
-              value={tuningOptions.find((t) => t.tuning.every((m, i) => m === d.tuning[i]))?.id}
-              onChange={(e) => set({ tuning: [...tuningOptions.find((t) => t.id === e.target.value)!.tuning] })}
-            >
-              {tuningOptions.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="field">
-            <span className="field__label">Capo</span>
-            <Stepper label="Capo" value={d.capo ? String(d.capo) : "None"} onDown={() => set({ capo: Math.max(0, d.capo - 1) })} onUp={() => set({ capo: Math.min(12, d.capo + 1) })} />
+            <label className="field">
+              <span className="field__label">Time signature</span>
+              <select className="input" value={d.timeSignature} onChange={(e) => set({ timeSignature: e.target.value })}>
+                {TIME_SIGNATURES.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+            <div className="field field--wide">
+              <span className="field__label">What kind of take</span>
+              <div className="chips chips--wrap">
+                {VERSION_TAGS.map((t) => (
+                  <button key={t} className="chip" aria-pressed={d.tags.includes(t)} onClick={() => set({ tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] })}>
+                    {TAG_LABEL[t]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="field field--wide">
+              <span className="field__label">Techniques</span>
+              <div className="chips chips--wrap">
+                {TECHNIQUES.map((t) => (
+                  <button key={t} className="chip" aria-pressed={d.techniques.includes(t)} onClick={() => set({ techniques: d.techniques.includes(t) ? d.techniques.filter((x) => x !== t) : [...d.techniques, t] })}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="field field--wide">
+              <span className="field__label">Video to listen to (optional)</span>
+              <input className="input" type="url" inputMode="url" value={d.youtubeUrl} onChange={(e) => set({ youtubeUrl: e.target.value })} placeholder={song.youtubeUrl ? "Leave empty to use the song's video" : "A YouTube link"} autoCapitalize="off" spellCheck={false} />
+              <span className="field__hint">Handy for a lead or solo played in a different recording.</span>
+            </label>
           </div>
-          <div className="field">
-            <span className="field__label">Key (as it sounds)</span>
-            <select className="input" value={d.keyPlayed} onChange={(e) => set({ keyPlayed: e.target.value })}>
-              <option value="">{suggested ? `Suggested: ${suggested}` : "Not set"}</option>
-              {KEYS.map((k) => (
-                <option key={k}>{k}</option>
-              ))}
-            </select>
-            {suggested && d.keyPlayed !== suggested && (
-              <button className="link" onClick={() => set({ keyPlayed: suggested })}>
-                Use {suggested} (from the chords{d.capo ? ` and capo ${d.capo}` : ""})
-              </button>
+        </section>
+      )}
+
+      {step === 1 && (
+        <section className="block">
+          <h2 className="h2">Chords, one section at a time</h2>
+          <p className="muted">
+            One bar per chord: <span className="kbdtext">Am F C G</span>. Two in a bar: <span className="kbdtext">Am C | F G</span>. A dot holds a chord one more beat: <span className="kbdtext">Am . . F</span>.
+          </p>
+          {videoUrl && <VideoPanel url={videoUrl} title={song.title} />}
+          {sectionPills(cur.id, setSecId, true)}
+          <div className="esec">
+            <div className="esec__head">
+              <select className="input input--sm" value={cur.kind} onChange={(e) => setSection(cur.id, { kind: e.target.value as SectionKind })} aria-label="Section type">
+                {KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {KIND_LABEL[k]}
+                  </option>
+                ))}
+              </select>
+              <input className="input input--sm" value={cur.label} onChange={(e) => setSection(cur.id, { label: e.target.value })} placeholder="Name (optional), e.g. Verse 2" maxLength={40} aria-label="Section name" />
+            </div>
+            <textarea
+              className="input esec__chords"
+              value={cur.text}
+              onChange={(e) => setSection(cur.id, { text: e.target.value })}
+              placeholder="Am F C G"
+              rows={3}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              aria-label={`${nameOf(cur)} chords`}
+            />
+            {cp && cp.unknown.length > 0 && <p className="field__error">Not chords: {cp.unknown.join(", ")}. Check the spelling, or write N.C. for no chord.</p>}
+            {cp && cp.bars.length > 0 && (
+              <ol className="bars bars--mini" aria-label="Bars">
+                {cp.bars.map((b, bi) => (
+                  <li key={bi} className="cbar">
+                    {b.chords.map((c, ci) => (
+                      <button
+                        key={ci}
+                        className="cbar__chord chordname"
+                        style={{ flexGrow: c.beats }}
+                        onClick={() =>
+                          c.name !== NO_CHORD &&
+                          open({
+                            kind: "chord",
+                            name: c.name,
+                            tuning: d.tuning,
+                            capo: d.capo,
+                            current: d.voicings[c.name]?.frets,
+                            onPick: (vv) => set({ voicings: { ...d.voicings, [c.name]: { frets: vv.frets, fingers: vv.fingers, baseFret: vv.baseFret } } }),
+                          })
+                        }
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </li>
+                ))}
+              </ol>
             )}
-          </div>
-          <div className="field">
-            <span className="field__label">Tempo (bpm)</span>
-            <div className="inline">
-              <input className="input num" inputMode="numeric" value={d.bpm} onChange={(e) => set({ bpm: e.target.value.replace(/\D/g, "").slice(0, 3) })} aria-label="Tempo in beats per minute" />
+            <input className="input input--sm" value={cur.note} onChange={(e) => setSection(cur.id, { note: e.target.value })} placeholder="Cue note (optional), e.g. after the drum fill" maxLength={120} aria-label="Cue note" />
+            <div className="esec__actions">
               <button
-                type="button"
-                className="btn btn--secondary tapbtn"
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  const b = tapper.current.tap(e.timeStamp);
-                  if (b) set({ bpm: String(b) });
+                className="link"
+                onClick={() => {
+                  duplicateSection(cur);
                 }}
               >
-                Tap
+                Duplicate
+              </button>
+              {d.sections.length > 1 && (
+                <button
+                  className="link link--danger"
+                  onClick={() => {
+                    setSecId(null);
+                    removeSection(cur.id);
+                  }}
+                >
+                  Remove this section
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {step === 2 && (
+        <section className="block">
+          <h2 className="h2">Strumming</h2>
+          <p className="muted">Tap a step to change it: down, up, rest or muted. Each section keeps its own pattern.</p>
+          {sectionPills(curStrum.id, setStrumSecId)}
+          <div className="esec">
+            <div className="esec__strum">
+              <div className="strumedit" role="group" aria-label="Strumming pattern">
+                {curStrum.strum.map((st, k) => (
+                  <button
+                    key={k}
+                    className="strumedit__step"
+                    aria-label={`Step ${k + 1}: ${st === "D" ? "down" : st === "U" ? "up" : st === "x" ? "muted" : "rest"}`}
+                    onClick={() => {
+                      const steps = [...curStrum.strum];
+                      steps[k] = NEXT[(NEXT.indexOf(st) + 1) % NEXT.length]!;
+                      setSection(curStrum.id, { strum: steps });
+                    }}
+                  >
+                    <StrumGlyph step={st} />
+                  </button>
+                ))}
+              </div>
+              <button
+                className="iconbtn iconbtn--plain"
+                aria-label="Hear this pattern"
+                onClick={() => {
+                  const first = parsed.get(curStrum.id)?.bars[0]?.chords[0]?.name ?? allChords[0];
+                  const f = first && first !== NO_CHORD ? d.voicings[first]?.frets ?? findVoicings(first, d.tuning, 1)[0]?.frets : null;
+                  if (!f) return showToast("Add a chord to hear the pattern");
+                  const { ctx } = audio();
+                  const stepSec = (60 / (Number(d.bpm) || 90)) * (bpb / curStrum.strum.length);
+                  curStrum.strum.forEach((st, k) => strumStep(st, f, d.tuning, d.capo, ctx.currentTime + 0.05 + k * stepSec, stepSec * 2, k === 0));
+                }}
+              >
+                <IconPlay />
+              </button>
+            </div>
+            <div className="esec__actions">
+              <button className="link" onClick={() => set({ sections: d.sections.map((x) => ({ ...x, strum: [...curStrum.strum] })) })}>
+                Use this pattern for every section
+              </button>
+              <button className="link" onClick={() => setSection(curStrum.id, { strum: [...DEFAULT_STRUM] })}>
+                Reset
               </button>
             </div>
           </div>
-          <label className="field">
-            <span className="field__label">Time signature</span>
-            <select className="input" value={d.timeSignature} onChange={(e) => set({ timeSignature: e.target.value })}>
-              {TIME_SIGNATURES.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </label>
-          <div className="field field--wide">
-            <span className="field__label">What kind of take</span>
-            <div className="chips chips--wrap">
-              {VERSION_TAGS.map((t) => (
-                <button key={t} className="chip" aria-pressed={d.tags.includes(t)} onClick={() => set({ tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] })}>
-                  {TAG_LABEL[t]}
-                </button>
-              ))}
-            </div>
+        </section>
+      )}
+
+      {step === 3 && (
+        <section className="block">
+          <h2 className="h2">Song order</h2>
+          <p className="muted">The order the sections are played in. A section can come back as many times as you like without typing it again.</p>
+          <ol className="arr">
+            {d.arrangement.map((a, i) => {
+              const sec = d.sections.find((x) => x.id === a.sectionId);
+              if (!sec) return null;
+              return (
+                <li key={`${a.sectionId}-${i}`} className="arr__item">
+                  <span className="arr__name">{nameOf(sec)}</span>
+                  <Stepper
+                    label="Times"
+                    value={`×${a.repeat}`}
+                    onDown={() => set({ arrangement: d.arrangement.map((x, j) => (j === i ? { ...x, repeat: Math.max(1, x.repeat - 1) } : x)) })}
+                    onUp={() => set({ arrangement: d.arrangement.map((x, j) => (j === i ? { ...x, repeat: Math.min(16, x.repeat + 1) } : x)) })}
+                  />
+                  <button className="iconbtn iconbtn--plain" aria-label="Move earlier" onClick={() => moveArr(i, -1)} disabled={i === 0}>
+                    <svg viewBox="0 0 24 24" width="20" height="20" className="icon" aria-hidden="true">
+                      <path d="M6 14.5l6-6 6 6" />
+                    </svg>
+                  </button>
+                  <button className="iconbtn iconbtn--plain" aria-label="Move later" onClick={() => moveArr(i, 1)} disabled={i === d.arrangement.length - 1}>
+                    <svg viewBox="0 0 24 24" width="20" height="20" className="icon" aria-hidden="true">
+                      <path d="M6 9.5l6 6 6-6" />
+                    </svg>
+                  </button>
+                  <button className="link link--danger" onClick={() => set({ arrangement: d.arrangement.filter((_, j) => j !== i) })}>
+                    Remove
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="field__label">Add to the order</p>
+          <div className="chips chips--wrap">
+            {d.sections.map((x) => (
+              <button key={x.id} className="chip" onClick={() => set({ arrangement: [...d.arrangement, { sectionId: x.id, repeat: 1 }] })}>
+                <IconPlus /> {nameOf(x)}
+              </button>
+            ))}
           </div>
-          <div className="field field--wide">
-            <span className="field__label">Techniques</span>
-            <div className="chips chips--wrap">
-              {TECHNIQUES.map((t) => (
-                <button key={t} className="chip" aria-pressed={d.techniques.includes(t)} onClick={() => set({ techniques: d.techniques.includes(t) ? d.techniques.filter((x) => x !== t) : [...d.techniques, t] })}>
-                  {t}
-                </button>
-              ))}
+        </section>
+      )}
+
+      {step === 4 && (
+        <section className="block">
+          <h2 className="h2">Review</h2>
+          <dl className="esummary">
+            <div>
+              <dt>Part</dt>
+              <dd>{PART_LABEL[d.part]}</dd>
             </div>
-          </div>
-          <div className="field field--wide">
+            <div>
+              <dt>Setup</dt>
+              <dd>
+                {tuningName(d.tuning)} · {d.capo ? `capo ${d.capo}` : "no capo"} · {d.timeSignature}
+                {d.bpm ? ` · ${d.bpm} bpm` : ""}
+              </dd>
+            </div>
+            <div>
+              <dt>Sections</dt>
+              <dd>
+                {d.sections.length} · {barsCount} bar{barsCount === 1 ? "" : "s"}
+              </dd>
+            </div>
+            <div>
+              <dt>Chords</dt>
+              <dd className="chordname">{allChords.join(" ") || "None yet"}</dd>
+            </div>
+          </dl>
+          {unknown.length > 0 && <p className="field__error">Not chords: {unknown.join(", ")}. Go back to Chords to fix them.</p>}
+          {barsCount === 0 && <p className="field__error">No chords yet. Go back to Chords and add some.</p>}
+          <div className="field">
             <span className="field__label">Who can see it</span>
             <Segmented
               label="Who can see it"
@@ -588,7 +713,7 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
               {songPrivate
                 ? "The song is private, so its versions are too. Make the song public to share versions."
                 : d.visibility === "public"
-                  ? "Everyone can see it, save a copy (your credit stays) and vote on it later."
+                  ? "Everyone can see it, save a copy (your credit stays) and rate it."
                   : d.visibility === "unlisted"
                     ? "Anyone with the link can see it (links arrive with sharing)."
                     : "Only you can see it."}
@@ -603,16 +728,29 @@ export function EditVersion({ songId, id }: { songId: string; id?: string }) {
               </p>
             )}
           </div>
-        </div>
-      </section>
+          <button className="btn btn--secondary btn--big" onClick={preview} disabled={!allChords.length}>
+            {pos ? <IconPause /> : <IconPlay />} {pos ? "Stop" : "Hear it"}
+          </button>
+        </section>
+      )}
 
       <div className="form__footer form__footer--row">
-        <button className="btn btn--secondary btn--big" onClick={preview} disabled={!allChords.length}>
-          {pos ? <IconPause /> : <IconPlay />} {pos ? "Stop" : "Hear it"}
-        </button>
-        <button className="btn btn--primary btn--big" onClick={() => void save()} disabled={saving}>
-          Save version
-        </button>
+        {step > 0 ? (
+          <button className="btn btn--secondary btn--big" onClick={() => goto(step - 1)}>
+            Back
+          </button>
+        ) : (
+          <span />
+        )}
+        {step < STEPS.length - 1 ? (
+          <button className="btn btn--primary btn--big" onClick={() => goto(step + 1)}>
+            Next: {STEPS[step + 1]}
+          </button>
+        ) : (
+          <button className="btn btn--primary btn--big" onClick={() => void save()} disabled={saving}>
+            Save version
+          </button>
+        )}
       </div>
     </>
   );

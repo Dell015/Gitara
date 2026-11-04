@@ -5,7 +5,7 @@ import { Hero } from "../../ui/Hero";
 import { plural, useCanPlay, useLibrarySongs } from "../hooks";
 import { useNav } from "../nav";
 import { SongList } from "../rows";
-import type { LearnStatus } from "../../core/model";
+import { entryStatuses, type LearnStatus } from "../../core/model";
 
 export function Collection({ kind }: { kind: "liked" | "learning" | "canplay" }) {
   const nav = useNav();
@@ -13,7 +13,7 @@ export function Collection({ kind }: { kind: "liked" | "learning" | "canplay" })
   const [status, setStatus] = useState<LearnStatus | null>(null);
   const canPlay = useCanPlay();
   const rows = (lib ?? [])
-    .filter((x) => (kind === "canplay" ? canPlay?.has(x.song.id) : kind === "learning" ? x.entry.status === "learning" : !status || x.entry.status === status))
+    .filter((x) => (kind === "canplay" ? canPlay?.has(x.song.id) : kind === "learning" ? entryStatuses(x.entry).includes("learning") : !status || entryStatuses(x.entry).includes(status)))
     .sort((a, b) => b.entry.createdAt.localeCompare(a.entry.createdAt));
   return (
     <>

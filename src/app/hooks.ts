@@ -70,12 +70,16 @@ export function useCanPlay(): Set<string> | undefined {
   return useLiveQuery(async () => {
     const entries = await db.library.toArray();
     const versions = await db.versions.toArray();
+    const progress = await db.progress.toArray();
     const pick = (songId: string, pref?: string) => {
       const vs = versions.filter((v) => v.songId === songId);
       return vs.find((v) => v.id === pref) ?? vs[0];
     };
     const known = new Set<string>();
-    for (const e of entries) if (e.status === "performing") for (const c of chordsUsed(pick(e.songId, e.preferredVersionId)?.content ?? { sections: [], arrangement: [] })) known.add(c);
+    // the chords you know: every version you are Performing (or, for old songs with no versions, the default one)
+    const performing = new Set(progress.filter((p) => p.status === "performing").map((p) => p.versionId));
+    for (const v of versions) if (performing.has(v.id)) for (const c of chordsUsed(v.content)) known.add(c);
+    for (const e of entries) if (e.status === "performing" && !versions.some((v) => v.songId === e.songId)) for (const c of chordsUsed(pick(e.songId, e.preferredVersionId)?.content ?? { sections: [], arrangement: [] })) known.add(c);
     const out = new Set<string>();
     if (!known.size) return out;
     for (const e of entries) {

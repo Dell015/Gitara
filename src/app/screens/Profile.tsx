@@ -15,7 +15,7 @@ const SECTIONS: { id: keyof PublicSections; label: string; hint: string }[] = [
   { id: "planning", label: "Planning to learn", hint: "Songs you want to learn" },
   { id: "learning", label: "Learning", hint: "Songs you're working on" },
   { id: "performing", label: "Performing", hint: "Songs you can play" },
-  { id: "rating", label: "Your rating", hint: "Upvotes and ratings on what you've shared" },
+  { id: "rating", label: "Your rating", hint: "Star ratings on the versions you've shared" },
 ];
 
 function Stats({ s }: { s: ProfileStats | null }) {
@@ -23,16 +23,12 @@ function Stats({ s }: { s: ProfileStats | null }) {
   return (
     <div className="stats">
       <span className="stat">
-        <span className="stat__n num">{s.versionVotes}</span>
-        <span className="stat__l">upvotes</span>
-      </span>
-      <span className="stat">
         <span className="stat__n num">{s.publicVersions}</span>
         <span className="stat__l">versions shared</span>
       </span>
       <span className="stat">
         <span className="stat__n num">{s.ratingAvg !== null ? s.ratingAvg.toFixed(1) : "–"}</span>
-        <span className="stat__l">{s.ratings ? `from ${s.ratings} ratings` : "song rating"}</span>
+        <span className="stat__l">{s.ratings ? `from ${s.ratings} ratings` : "rating on versions"}</span>
       </span>
       <span className="stat">
         <span className="stat__n num">{s.publicTracks}</span>
@@ -229,7 +225,7 @@ export function UserProfile({ id }: { id: string }) {
                 <ItemRow
                   key={v.id}
                   title={`${s?.title ?? "Song"}${v.label ? ` · ${v.label}` : ""}`}
-                  sub={`${s?.artist ?? ""} · ${tuningName(v.tuning)}${v.capo ? ` · capo ${v.capo}` : ""} · ${v.votes ?? 0} upvotes`}
+                  sub={`${s?.artist ?? ""} · ${tuningName(v.tuning)}${v.capo ? ` · capo ${v.capo}` : ""} · ${v.ratingCount ? `${(v.ratingSum! / v.ratingCount).toFixed(1)}★` : "not rated yet"}`}
                   lead={<Art seed={v.songId} warmth={warmthFor("performing")} className="mark" />}
                   onClick={() => nav.push({ name: "version", id: v.id })}
                 />

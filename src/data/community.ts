@@ -26,51 +26,41 @@ const check = <T>(r: { data: T; error: { message: string } | null }) => {
   return r.data;
 };
 
-// ---------------------------------------------------------------- votes (upvote only, Q47)
+// ---------------------------------------------------------------- ratings (stars on each version)
 
-export async function myVotes(versionIds: string[]): Promise<Set<string>> {
-  if (!supabase || !currentUserId() || !versionIds.length) return new Set();
-  const { data } = await supabase.from("version_votes").select("version_id").eq("user_id", uid()).in("version_id", versionIds);
-  return new Set((data ?? []).map((r) => r.version_id as string));
-}
-
-export async function setVote(versionId: string, on: boolean): Promise<number> {
-  const s = sb();
-  if (on) check(await s.from("version_votes").insert({ version_id: versionId, user_id: uid() }));
-  else check(await s.from("version_votes").delete().eq("version_id", versionId).eq("user_id", uid()));
-  const { data } = await s.from("versions").select("vote_count").eq("id", versionId).maybeSingle();
-  const votes = (data?.vote_count as number) ?? 0;
-  await db.versions.update(versionId, { votes });
-  return votes;
-}
-
-// ---------------------------------------------------------------- ratings
-
-export async function myRating(songId: string): Promise<number | null> {
+export async function myVersionRating(versionId: string): Promise<number | null> {
   if (!supabase || !currentUserId()) return null;
-  const { data } = await supabase.from("song_ratings").select("stars").eq("song_id", songId).eq("user_id", uid()).maybeSingle();
+  const { data } = await supabase.from("version_ratings").select("stars").eq("version_id", versionId).eq("user_id", uid()).maybeSingle();
   return (data?.stars as number) ?? null;
 }
 
-export async function rateSong(songId: string, stars: number | null): Promise<{ sum: number; count: number }> {
+/** Your stars for every version of a song, keyed by version id. */
+export async function myVersionRatings(versionIds: string[]): Promise<Map<string, number>> {
+  if (!supabase || !currentUserId() || !versionIds.length) return new Map();
+  const { data } = await supabase.from("version_ratings").select("version_id, stars").eq("user_id", uid()).in("version_id", versionIds);
+  return new Map((data ?? []).map((r) => [r.version_id as string, r.stars as number]));
+}
+
+export async function rateVersion(versionId: string, stars: number | null): Promise<{ sum: number; count: number }> {
   const s = sb();
-  if (stars === null) check(await s.from("song_ratings").delete().eq("song_id", songId).eq("user_id", uid()));
-  else check(await s.from("song_ratings").upsert({ song_id: songId, user_id: uid(), stars }, { onConflict: "song_id,user_id" }));
-  const { data } = await s.from("songs").select("rating_sum, rating_count").eq("id", songId).maybeSingle();
+  if (stars === null) check(await s.from("version_ratings").delete().eq("version_id", versionId).eq("user_id", uid()));
+  else check(await s.from("version_ratings").upsert({ version_id: versionId, user_id: uid(), stars }, { onConflict: "version_id,user_id" }));
+  const { data } = await s.from("versions").select("rating_sum, rating_count").eq("id", versionId).maybeSingle();
   const out = { sum: (data?.rating_sum as number) ?? 0, count: (data?.rating_count as number) ?? 0 };
-  await db.songs.update(songId, { ratingSum: out.sum, ratingCount: out.count });
+  await db.versions.update(versionId, { ratingSum: out.sum, ratingCount: out.count });
   return out;
 }
 
-/** Fresh vote counts and ratings for what's on screen. */
+/** Fresh ratings for the versions of a song (and the song's own total, which is kept for old data). */
 export async function refreshCounts(songId: string): Promise<void> {
   if (!supabase) return;
-  const [song, vers] = await Promise.all([
-    supabase.from("songs").select("rating_sum, rating_count").eq("id", songId).maybeSingle(),
-    supabase.from("versions").select("id, vote_count").eq("song_id", songId),
-  ]);
-  if (song.data) await db.songs.update(songId, { ratingSum: song.data.rating_sum as number, ratingCount: song.data.rating_count as number });
-  for (const v of vers.data ?? []) await db.versions.update(v.id as string, { votes: v.vote_count as number });
+  const vers = await supabase.from("versions").select("id, rating_sum, rating_count").eq("song_id", songId);
+  for (const v of vers.data ?? []) await db.versions.update(v.id as string, { ratingSum: v.rating_sum as number, ratingCount: v.rating_count as number });
+}
+
+/** Average stars for a version, or null when nobody has rated it. */
+export function versionAverage(v: { ratingSum?: number; ratingCount?: number }): number | null {
+  return v.ratingCount ? (v.ratingSum ?? 0) / v.ratingCount : null;
 }
 
 // ---------------------------------------------------------------- reports
@@ -182,11 +172,11 @@ export async function publicContentOf(id: string) {
   const s = supabase;
   if (!s) return null;
   const [vers, songs, tracks, pls, lib] = await Promise.all([
-    s.from("versions").select("*").eq("author_id", id).eq("visibility", "public").order("vote_count", { ascending: false }).limit(50),
+    s.from("versions").select("*").eq("author_id", id).eq("visibility", "public").order("rating_sum", { ascending: false }).limit(50),
     s.from("songs").select("*").eq("created_by", id).eq("visibility", "public").limit(50),
     s.from("tracks").select("*").eq("owner_id", id).eq("visibility", "public").limit(50),
     s.from("playlists").select("*").eq("owner_id", id).eq("visibility", "public").limit(50),
-    s.from("library_entries").select("song_id, status").eq("user_id", id).not("status", "is", null).limit(300),
+    s.from("library_entries").select("song_id, status, statuses").eq("user_id", id).not("status", "is", null).limit(300),
   ]);
   const versions = (vers.data ?? []).map(rowToVersion);
   const libSongIds = (lib.data ?? []).map((r) => r.song_id as string);
@@ -203,7 +193,10 @@ export async function publicContentOf(id: string) {
     songs: (songs.data ?? []).map(rowToSong),
     tracks: (tracks.data ?? []).map(rowToTrack),
     playlists: (pls.data ?? []).map((r) => rowToPlaylist(r)),
-    library: (lib.data ?? []).map((r) => ({ songId: r.song_id as string, status: r.status as "planning" | "learning" | "performing" })),
+    library: (lib.data ?? []).flatMap((r) => {
+      const all = ((r.statuses as string[] | null)?.length ? (r.statuses as string[]) : [r.status as string]) as ("planning" | "learning" | "performing")[];
+      return all.map((status) => ({ songId: r.song_id as string, status }));
+    }),
     songsById: new Map(allSongs.map((x) => [x.id, x])),
   };
 }

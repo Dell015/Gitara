@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GENRES } from "../../core/genres";
-import type { Playlist, Song } from "../../core/model";
+import { entryStatuses, type Playlist, type Song } from "../../core/model";
 import { normalize } from "../../core/text";
 import { searchPublicPlaylists } from "../../data/community";
 import { db } from "../../data/local-db";
@@ -54,7 +54,7 @@ export function Search() {
     popularSongs(8).then(setPopular, () => setPopular([]));
     recentPublicSongs(8).then(setFresh, () => setFresh([]));
   }, []);
-  const learning = (lib ?? []).filter((x) => x.entry.status === "learning");
+  const learning = (lib ?? []).filter((x) => entryStatuses(x.entry).includes("learning"));
   const libIds = new Set((lib ?? []).map((x) => x.song.id));
   const popularNew = popular.filter((p) => !libIds.has(p.song.id));
   const freshNew = fresh.filter((x) => !libIds.has(x.id) && !popular.some((p) => p.song.id === x.id));

@@ -1,6 +1,6 @@
 /** Converts between on-device rows (camelCase) and database rows (snake_case). Pure; tested. */
 import type { Track } from "../core/drums";
-import type { LibraryEntry, Playlist, PlaylistItem, Song, Version } from "../core/model";
+import { VERSION_PARTS, type LibraryEntry, type Playlist, type PlaylistItem, type Song, type Version, type VersionPart, type VersionProgress } from "../core/model";
 
 type Row = Record<string, unknown>;
 const opt = <T>(v: T | null | undefined): T | undefined => (v === null ? undefined : v);
@@ -57,6 +57,7 @@ export function entryToRow(e: LibraryEntry, uid: string): Row {
     user_id: uid,
     song_id: e.songId,
     status: e.status,
+    statuses: e.statuses ?? (e.status ? [e.status] : []),
     can_play: e.canPlay,
     can_sing: e.canSing,
     preferred_version_id: e.preferredVersionId ?? null,
@@ -67,6 +68,7 @@ export function rowToEntry(r: Row, local?: LibraryEntry): LibraryEntry {
   return {
     songId: r.song_id as string,
     status: (r.status as LibraryEntry["status"]) ?? null,
+    statuses: (r.statuses as LibraryEntry["statuses"]) ?? undefined,
     canPlay: (r.can_play as LibraryEntry["canPlay"]) ?? [],
     canSing: Boolean(r.can_sing),
     preferredVersionId: opt(r.preferred_version_id as string | null),
@@ -137,12 +139,34 @@ export function versionToRow(v: Version, uid: string): Row {
     time_signature: v.timeSignature ?? null,
     techniques: v.techniques,
     label: v.label ?? null,
+    part: v.part,
+    youtube_url: v.youtubeUrl ?? null,
     tags: v.tags,
     content: v.content,
     content_hash: v.contentHash ?? null,
     difficulty_score: v.difficultyScore ?? null,
     difficulty_level: v.difficultyLevel ?? null,
     visibility: v.visibility,
+  };
+}
+
+export function partOf(v: unknown): VersionPart {
+  return VERSION_PARTS.includes(v as VersionPart) ? (v as VersionPart) : "rhythm";
+}
+
+export function progressToRow(p: VersionProgress, uid: string): Row {
+  return { user_id: uid, version_id: p.versionId, song_id: p.songId, status: p.status };
+}
+
+export function rowToProgress(r: Row): VersionProgress {
+  return {
+    versionId: r.version_id as string,
+    songId: r.song_id as string,
+    status: r.status as VersionProgress["status"],
+    startedLearningAt: opt(r.started_learning_at as string | null),
+    startedPerformingAt: opt(r.started_performing_at as string | null),
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
   };
 }
 
@@ -160,6 +184,10 @@ export function rowToVersion(r: Row): Version {
     timeSignature: opt(r.time_signature as string | null),
     techniques: (r.techniques as string[]) ?? [],
     label: opt(r.label as string | null),
+    part: partOf(r.part),
+    youtubeUrl: opt(r.youtube_url as string | null),
+    ratingSum: (r.rating_sum as number) ?? 0,
+    ratingCount: (r.rating_count as number) ?? 0,
     tags: (r.tags as Version["tags"]) ?? [],
     content: r.content as Version["content"],
     contentHash: opt(r.content_hash as string | null),

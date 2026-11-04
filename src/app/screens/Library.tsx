@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo, useState } from "react";
-import type { LearnStatus } from "../../core/model";
+import { entryStatuses, type LearnStatus } from "../../core/model";
 import { normalize } from "../../core/text";
 import { isMine } from "../../data/auth";
 import { othersPlaylistsCached } from "../../data/community";
@@ -98,7 +98,7 @@ export function Library() {
         if (!top && !entry.pinnedAt) continue;
         if (top === "made" && !isMine(song.createdBy)) continue;
         if (top === "songs" && songSub) {
-          if (songSub === "liked" ? entry.status !== null : entry.status !== songSub) continue;
+          if (songSub === "liked" ? entryStatuses(entry).length > 0 : !entryStatuses(entry).includes(songSub)) continue;
         }
         out.push({
           key: `song:${song.id}`,
@@ -173,7 +173,7 @@ export function Library() {
   }, [lib, playlists, counts, recents, top, songSub, madeSub, plSub, sort, nav, open]);
 
   const likedCount = lib?.length ?? 0;
-  const learningCount = (lib ?? []).filter((x) => x.entry.status === "learning").length;
+  const learningCount = (lib ?? []).filter((x) => entryStatuses(x.entry).includes("learning")).length;
   const showCollections = !top && likedCount > 0;
   const loading = lib === undefined || playlists === undefined;
   const nothing = !loading && !likedCount && !(playlists ?? []).length;

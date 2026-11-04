@@ -136,7 +136,7 @@ function Screen({ route }: { route: Route }) {
     case "jamRoom":
       return <JamRoom id={route.id} />;
     case "editVersion":
-      return <EditVersion songId={route.songId} id={route.id} />;
+      return <EditVersion songId={route.songId} id={route.id} part={route.part} />;
     case "addSong":
       return <AddSong title={route.title} artist={route.artist} editId={route.editId} />;
   }

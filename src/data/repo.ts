@@ -4,7 +4,7 @@
  */
 import { computeDifficulty, contentHash } from "../core/chart";
 import type { Track } from "../core/drums";
-import type { LearnStatus, LibraryEntry, PlayablePart, Playlist, PlaylistItem, Song, Version, Visibility } from "../core/model";
+import type { LearnStatus, LibraryEntry, PlayablePart, Playlist, PlaylistItem, Song, Version, VersionProgress, Visibility } from "../core/model";
 import { normalize } from "../core/text";
 import { ownerForNewRow } from "./auth";
 import { db, type SyncedTable } from "./local-db";
@@ -129,12 +129,76 @@ export async function setStatus(songId: string, status: LearnStatus | null): Pro
       await db.library.put({
         ...e,
         status,
+        statuses: status ? [status] : [],
         updatedAt: t,
         startedLearningAt: e.startedLearningAt ?? (status === "learning" ? t : undefined),
         startedPerformingAt: e.startedPerformingAt ?? (status === "performing" ? t : undefined),
       });
     }
     await queue("library", "upsert", songId);
+  });
+  done(undefined);
+}
+
+const RANK: Record<LearnStatus, number> = { planning: 1, learning: 2, performing: 3 };
+
+/** Works out the song's status from its versions' progress (the song follows its versions). Run inside a transaction. */
+async function recomputeEntry(songId: string): Promise<void> {
+  const rows = await db.progress.where("songId").equals(songId).toArray();
+  const e = await db.library.get(songId);
+  if (!rows.length) {
+    // No version has a status. A song with versions then has none; a song without any keeps its own (legacy) status.
+    if (!e || (await db.versions.where("songId").equals(songId).count()) === 0) return;
+    if (e.status === null && !(e.statuses?.length)) return;
+    await db.library.put({ ...e, status: null, statuses: [], updatedAt: now() });
+    await queue("library", "upsert", songId);
+    return;
+  }
+  const statuses = [...new Set(rows.map((r) => r.status))].sort((a, b) => RANK[a] - RANK[b]);
+  const furthest = statuses[statuses.length - 1]!;
+  const t = now();
+  const base = e ?? newEntry(songId, null);
+  const learnAt = rows.map((r) => r.startedLearningAt).filter((x): x is string => !!x).sort()[0];
+  const perfAt = rows.map((r) => r.startedPerformingAt).filter((x): x is string => !!x).sort()[0];
+  await db.library.put({
+    ...base,
+    status: furthest,
+    statuses,
+    startedLearningAt: base.startedLearningAt ?? learnAt,
+    startedPerformingAt: base.startedPerformingAt ?? perfAt,
+    updatedAt: t,
+  });
+  await queue("library", "upsert", songId);
+}
+
+/** Sets how well you know one version (or clears it). Saves the song to your Library too. */
+export async function setVersionStatus(versionId: string, status: LearnStatus | null): Promise<void> {
+  await db.transaction("rw", db.versions, db.progress, db.library, db.outbox, async () => {
+    const v = await db.versions.get(versionId);
+    if (!v) return;
+    if (status === null) {
+      await db.progress.delete(versionId);
+      await queue("progress", "delete", versionId);
+    } else {
+      const old = await db.progress.get(versionId);
+      const t = now();
+      const p: VersionProgress = {
+        versionId,
+        songId: v.songId,
+        status,
+        startedLearningAt: old?.startedLearningAt ?? (status === "learning" ? t : undefined),
+        startedPerformingAt: old?.startedPerformingAt ?? (status === "performing" ? t : undefined),
+        createdAt: old?.createdAt ?? t,
+        updatedAt: t,
+      };
+      await db.progress.put(p);
+      await queue("progress", "upsert", versionId);
+      if (!(await db.library.get(v.songId))) {
+        await db.library.put(newEntry(v.songId, null));
+        await queue("library", "upsert", v.songId);
+      }
+    }
+    await recomputeEntry(v.songId);
   });
   done(undefined);
 }
@@ -315,11 +379,16 @@ export async function saveVersion(d: VersionDraft): Promise<Version> {
 }
 
 export async function deleteVersion(id: string): Promise<void> {
-  await db.transaction("rw", db.versions, db.library, db.outbox, async () => {
+  await db.transaction("rw", db.versions, db.library, db.progress, db.outbox, async () => {
     const v = await db.versions.get(id);
     await db.versions.delete(id);
     await queue("versions", "delete", id);
     if (v) {
+      if (await db.progress.get(id)) {
+        await db.progress.delete(id);
+        await queue("progress", "delete", id);
+        await recomputeEntry(v.songId);
+      }
       const e = await db.library.get(v.songId);
       if (e?.preferredVersionId === id) {
         await db.library.put({ ...e, preferredVersionId: undefined, updatedAt: now() });

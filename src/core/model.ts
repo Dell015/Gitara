@@ -129,8 +129,19 @@ export interface VersionContent {
   voicings?: Record<string, { frets: number[]; fingers: number[]; baseFret: number }>;
 }
 
-export const VERSION_TAGS = ["cover", "live", "acoustic", "original", "simplified", "fingerstyle"] as const;
+export const VERSION_TAGS = ["cover", "live", "acoustic", "original", "simplified"] as const;
 export type VersionTag = (typeof VERSION_TAGS)[number];
+
+/** What a version is for: every version belongs to one of these, and a song page groups them that way. */
+export const VERSION_PARTS = ["rhythm", "lead", "solo", "fingerstyle"] as const;
+export type VersionPart = (typeof VERSION_PARTS)[number];
+export const PART_LABEL: Record<VersionPart, string> = { rhythm: "Rhythm", lead: "Lead", solo: "Solo", fingerstyle: "Fingerstyle" };
+export const PART_HINT: Record<VersionPart, string> = {
+  rhythm: "Chords and strumming",
+  lead: "Riffs, fills and melody lines",
+  solo: "The guitar solo",
+  fingerstyle: "Picked arrangements, played alone",
+};
 
 export type DifficultyLevel = "beginner" | "intermediate" | "advanced";
 
@@ -150,7 +161,14 @@ export interface Version {
   bpm?: number;
   timeSignature?: string;
   techniques: string[];
-  /** Upvotes, kept by the database (Phase 6). */
+  /** Rhythm, Lead, Solo or Fingerstyle. */
+  part: VersionPart;
+  /** Star ratings from others, kept by the database. */
+  ratingSum?: number;
+  ratingCount?: number;
+  /** A video to listen to while playing this version (falls back to the song's). */
+  youtubeUrl?: string;
+  /** Old up-votes, no longer shown. */
   votes?: number;
   /** Short name for this take, e.g. "Easy version". */
   label?: string;
@@ -171,8 +189,10 @@ export interface Version {
 /** A song in your library, with where you are with it. Keyed by (user, song). */
 export interface LibraryEntry {
   songId: Id;
-  /** null = liked (saved) without saying how well you know it. Setting a status keeps it liked. */
+  /** The furthest status of any of the song's versions (cache), or null = liked without a status. */
   status: LearnStatus | null;
+  /** Every status a version of this song has (cache): a song shows under each. Each version keeps its own in `VersionProgress`. */
+  statuses?: LearnStatus[];
   canPlay: PlayablePart[];
   canSing: boolean;
   preferredVersionId?: Id;
@@ -180,6 +200,17 @@ export interface LibraryEntry {
   startedPerformingAt?: IsoDate;
   /** Pinned to the top of Library. Device-only for now (not synced). */
   pinnedAt?: IsoDate;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
+/** How well you know one version: Planning, Learning or Performing. A song's status follows its versions. */
+export interface VersionProgress {
+  versionId: Id;
+  songId: Id;
+  status: LearnStatus;
+  startedLearningAt?: IsoDate;
+  startedPerformingAt?: IsoDate;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 }
@@ -223,3 +254,8 @@ export const PRIVATE_BY_DEFAULT: PublicSections = {
   performing: false,
   rating: false,
 };
+
+/** Every status a song has through its versions (falls back to the song's own for songs without versions). */
+export function entryStatuses(e: Pick<LibraryEntry, "status" | "statuses">): LearnStatus[] {
+  return e.statuses?.length ? e.statuses : e.status ? [e.status] : [];
+}
